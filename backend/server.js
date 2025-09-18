@@ -10,6 +10,18 @@ const PORT = 3001;
 app.use(cors());
 app.use(bodyParser.json());
 
+// Helper function to convert boolean flags
+const convertFlags = (row) => {
+  return {
+    Events: Boolean(row.flag_events),
+    Market: Boolean(row.flag_market),
+    P2P: Boolean(row.flag_p2p),
+    Secure: Boolean(row.flag_secure),
+    Store: Boolean(row.flag_store),
+    Dispatch: Boolean(row.flag_dispatch)
+  };
+};
+
 // ==================== CATEGORIES ENDPOINTS ====================
 
 // GET /categories - Lista todas categorias
@@ -18,11 +30,24 @@ app.get('/categories', (req, res) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    // Parse JSON fields
+    
     const categories = rows.map(row => ({
-      ...row,
-      flags: JSON.parse(row.flags || '{}')
+      id: row.id,
+      name: row.name,
+      flags: convertFlags(row),
+      price: row.price,
+      priority: row.priority,
+      lifetime: row.lifetime,
+      restock: row.restock,
+      min: row.min,
+      nominal: row.nominal,
+      quantmin: row.quantmin,
+      quantmax: row.quantmax,
+      tier: row.tier,
+      created_at: row.created_at,
+      updated_at: row.updated_at
     }));
+    
     res.json(categories);
   });
 });
@@ -37,8 +62,25 @@ app.get('/categories/:id', (req, res) => {
     if (!row) {
       return res.status(404).json({ error: 'Category not found' });
     }
-    row.flags = JSON.parse(row.flags || '{}');
-    res.json(row);
+    
+    const category = {
+      id: row.id,
+      name: row.name,
+      flags: convertFlags(row),
+      price: row.price,
+      priority: row.priority,
+      lifetime: row.lifetime,
+      restock: row.restock,
+      min: row.min,
+      nominal: row.nominal,
+      quantmin: row.quantmin,
+      quantmax: row.quantmax,
+      tier: row.tier,
+      created_at: row.created_at,
+      updated_at: row.updated_at
+    };
+    
+    res.json(category);
   });
 });
 
