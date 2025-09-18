@@ -6,10 +6,33 @@ const ItemDetailsV04 = ({ item, onUpdateItem, categories }) => {
     classname: '',
     category_id: '',
     nominal: '',
-    min: '',
-    quantmin: 50,
-    quantmax: 80,
-    tier: '1',
+               <div className="form-group">
+              <label>Lifetime: {getLifetimeLabel(formData.lifetime)}</label>
+              <input
+                type="range"
+                name="lifetime"
+                value={getLifetimeSliderValue(formData.lifetime)}
+                min="0"
+                max="8"
+                step="1"
+                onChange={handleLifetimeChange}
+                className="slider lifetime-slider"
+              />
+              <div className="lifetime-markers">
+                <span>1h</span>
+                <span>2h</span>
+                <span>4h</span>
+                <span>1d</span>
+                <span>3d</span>
+                <span>1w</span>
+                <span>2w</span>
+                <span>1m</span>
+                <span>∞</span>
+              </div>
+            </div>
+    quantmin: -1,
+    quantmax: -1,
+    tier: 1,
     price: 100,
     lifetime: 14400,
     restock: 1800,
@@ -37,65 +60,6 @@ const ItemDetailsV04 = ({ item, onUpdateItem, categories }) => {
     attachmentTypes: []
   });
 
-  // Mapeamento de lifetime exponencial
-  const lifetimeValues = [
-    { value: 3600, label: '1 hora' },      // 0
-    { value: 7200, label: '2 horas' },     // 1
-    { value: 14400, label: '4 horas' },    // 2
-    { value: 86400, label: '1 dia' },      // 3
-    { value: 259200, label: '3 dias' },    // 4
-    { value: 604800, label: '1 semana' },  // 5
-    { value: 1209600, label: '2 semanas' }, // 6
-    { value: 2592000, label: '1 mês' },    // 7
-    { value: -1, label: '∞' }              // 8
-  ];
-
-  const getLifetimeSliderValue = (lifetime) => {
-    const index = lifetimeValues.findIndex(lv => lv.value === lifetime);
-    return index >= 0 ? index : 2; // Default para 4 horas
-  };
-
-  const getLifetimeLabel = (lifetime) => {
-    const found = lifetimeValues.find(lv => lv.value === lifetime);
-    return found ? found.label : '4 horas';
-  };
-
-  const handleLifetimeChange = (e) => {
-    const sliderValue = parseInt(e.target.value);
-    const lifetimeValue = lifetimeValues[sliderValue].value;
-    setFormData(prev => ({
-      ...prev,
-      lifetime: lifetimeValue
-    }));
-  };
-
-  const handleTierChange = (tierNum, isChecked) => {
-    setFormData(prev => {
-      let tiers = prev.tier.toString().split(',').filter(t => t.trim());
-      
-      if (isChecked) {
-        if (!tiers.includes(tierNum.toString())) {
-          tiers.push(tierNum.toString());
-        }
-      } else {
-        tiers = tiers.filter(t => t !== tierNum.toString());
-      }
-      
-      // Garantir que há pelo menos um tier
-      if (tiers.length === 0) {
-        tiers = ['1'];
-      }
-      
-      // Ordenar os tiers
-      tiers.sort((a, b) => parseInt(a) - parseInt(b));
-      
-      return {
-        ...prev,
-        tier: tiers.join(',')
-      };
-    });
-  };
-
   useEffect(() => {
     if (item) {
       setFormData({
@@ -103,9 +67,9 @@ const ItemDetailsV04 = ({ item, onUpdateItem, categories }) => {
         category_id: item.category_id || '',
         nominal: item.nominal || '',
         min: item.min || '',
-        quantmin: item.quantmin || 50,
-        quantmax: item.quantmax || 80,
-        tier: item.tier || '1',
+        quantmin: item.quantmin || -1,
+        quantmax: item.quantmax || -1,
+        tier: item.tier || 1,
         price: item.price || 100,
         lifetime: item.lifetime || 14400,
         restock: item.restock || 1800,
@@ -128,6 +92,7 @@ const ItemDetailsV04 = ({ item, onUpdateItem, categories }) => {
   }, [item]);
 
   useEffect(() => {
+    // Carregar opções disponíveis
     fetchAvailableOptions();
   }, []);
 
@@ -164,28 +129,10 @@ const ItemDetailsV04 = ({ item, onUpdateItem, categories }) => {
 
   const handleInputChange = (e) => {
     const { name, value, type } = e.target;
-    
-    // Validação especial para quantmin/quantmax
-    if (name === 'quantmin') {
-      const newQuantMin = parseInt(value);
-      setFormData(prev => ({
-        ...prev,
-        quantmin: newQuantMin,
-        quantmax: Math.max(newQuantMin, prev.quantmax) // Garantir que quantmax >= quantmin
-      }));
-    } else if (name === 'quantmax') {
-      const newQuantMax = parseInt(value);
-      setFormData(prev => ({
-        ...prev,
-        quantmax: newQuantMax,
-        quantmin: Math.min(prev.quantmin, newQuantMax) // Garantir que quantmin <= quantmax
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: type === 'number' ? parseInt(value) || 0 : value
-      }));
-    }
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'number' ? parseInt(value) || 0 : value
+    }));
   };
 
   const handleFlagChange = (flagName) => {
@@ -216,27 +163,24 @@ const ItemDetailsV04 = ({ item, onUpdateItem, categories }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (onUpdateItem) {
-      onUpdateItem(formData);
-    }
+    onUpdateItem(item.id, formData);
   };
 
   if (!item) {
-    return <div className="item-details-v04">Selecione um item para ver os detalhes</div>;
+    return <div className="item-details-v04">Select an item to edit</div>;
   }
 
   return (
     <div className="item-details-v04">
       <div className="item-header">
-        <h2>{item.classname}</h2>
-        <span className="item-category">{item.category}</span>
+        <h2>Edit Item: {item.classname}</h2>
+        <span className="item-category">Category: {item.category}</span>
       </div>
 
-      <form className="item-form" onSubmit={handleSubmit}>
-        {/* Basic Information */}
+      <form onSubmit={handleSubmit} className="item-form">
+        {/* Basic Properties */}
         <div className="form-section">
-          <h3>Informações Básicas</h3>
-          
+          <h3>Basic Properties</h3>
           <div className="form-grid">
             <div className="form-group">
               <label>Classname:</label>
@@ -340,32 +284,18 @@ const ItemDetailsV04 = ({ item, onUpdateItem, categories }) => {
             </div>
 
             <div className="form-group">
-              <label>Lifetime: {getLifetimeLabel(formData.lifetime)}</label>
+              <label>Lifetime (seconds):</label>
               <input
-                type="range"
+                type="number"
                 name="lifetime"
-                value={getLifetimeSliderValue(formData.lifetime)}
+                value={formData.lifetime}
+                onChange={handleInputChange}
                 min="0"
-                max="8"
-                step="1"
-                onChange={handleLifetimeChange}
-                className="slider lifetime-slider"
               />
-              <div className="lifetime-markers">
-                <span>1h</span>
-                <span>2h</span>
-                <span>4h</span>
-                <span>1d</span>
-                <span>3d</span>
-                <span>1w</span>
-                <span>2w</span>
-                <span>1m</span>
-                <span>∞</span>
-              </div>
             </div>
 
             <div className="form-group">
-              <label>Restock:</label>
+              <label>Restock (seconds):</label>
               <input
                 type="number"
                 name="restock"
@@ -382,14 +312,16 @@ const ItemDetailsV04 = ({ item, onUpdateItem, categories }) => {
           <h3>Flags</h3>
           <div className="flags-grid">
             {Object.entries(formData.flags).map(([flagName, flagValue]) => (
-              <label key={flagName} className="flag-checkbox">
-                <input
-                  type="checkbox"
-                  checked={flagValue}
-                  onChange={() => handleFlagChange(flagName)}
-                />
-                <span className="flag-label">{flagName}</span>
-              </label>
+              <div key={flagName} className="flag-item">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={flagValue}
+                    onChange={() => handleFlagChange(flagName)}
+                  />
+                  {flagName}
+                </label>
+              </div>
             ))}
           </div>
         </div>
@@ -512,8 +444,8 @@ const ItemDetailsV04 = ({ item, onUpdateItem, categories }) => {
         </div>
 
         <div className="form-actions">
-          <button type="submit" className="btn-save">
-            💾 Save Changes
+          <button type="submit" className="btn-primary">
+            Update Item
           </button>
         </div>
       </form>

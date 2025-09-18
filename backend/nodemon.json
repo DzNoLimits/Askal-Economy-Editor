@@ -1,0 +1,19 @@
+{
+    "watch": [
+        "*.js",
+        "../frontend/build"
+    ],
+    "ignore": [
+        "node_modules/",
+        "*.db",
+        "*.log",
+        "../frontend/src/",
+        "../frontend/node_modules/"
+    ],
+    "ext": "js,json",
+    "delay": 1000,
+    "env": {
+        "NODE_ENV": "development"
+    },
+    "verbose": true
+}

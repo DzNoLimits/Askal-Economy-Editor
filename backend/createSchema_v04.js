@@ -2,10 +2,10 @@ const db = require('./database');
 
 // Cria as tabelas para suporte completo ao formato JSON v0.4
 const createTables = () => {
-  console.log('Creating database schema v0.4...');
+    console.log('Creating database schema v0.4...');
 
-  // Tabela de categorias expandida
-  db.run(`CREATE TABLE IF NOT EXISTS categories (
+    // Tabela de categorias expandida
+    db.run(`CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
     
@@ -32,8 +32,8 @@ const createTables = () => {
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  // Tabela de itens expandida
-  db.run(`CREATE TABLE IF NOT EXISTS items (
+    // Tabela de itens expandida
+    db.run(`CREATE TABLE IF NOT EXISTS items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     classname TEXT NOT NULL UNIQUE,
     category_id INTEGER NOT NULL,
@@ -61,8 +61,8 @@ const createTables = () => {
     FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE
   )`);
 
-  // Tabela de variantes
-  db.run(`CREATE TABLE IF NOT EXISTS variants (
+    // Tabela de variantes
+    db.run(`CREATE TABLE IF NOT EXISTS variants (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     item_id INTEGER NOT NULL,
     name TEXT NOT NULL,
@@ -91,48 +91,48 @@ const createTables = () => {
     UNIQUE(item_id, name)
   )`);
 
-  // Tabela de tags
-  db.run(`CREATE TABLE IF NOT EXISTS tags (
+    // Tabela de tags
+    db.run(`CREATE TABLE IF NOT EXISTS tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE
   )`);
 
-  // Tabela de usage
-  db.run(`CREATE TABLE IF NOT EXISTS usage_types (
+    // Tabela de usage
+    db.run(`CREATE TABLE IF NOT EXISTS usage_types (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE
   )`);
 
-  // Tabela de tipos de munição
-  db.run(`CREATE TABLE IF NOT EXISTS ammo_types (
+    // Tabela de tipos de munição
+    db.run(`CREATE TABLE IF NOT EXISTS ammo_types (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE
   )`);
 
-  // Tabela de magazines
-  db.run(`CREATE TABLE IF NOT EXISTS magazines (
+    // Tabela de magazines
+    db.run(`CREATE TABLE IF NOT EXISTS magazines (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE
   )`);
 
-  // Tabela de tipos de attachments
-  db.run(`CREATE TABLE IF NOT EXISTS attachment_types (
+    // Tabela de tipos de attachments
+    db.run(`CREATE TABLE IF NOT EXISTS attachment_types (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE -- ex: optics, suppressors, bayonets, buttstocks
   )`);
 
-  // Tabela de attachments
-  db.run(`CREATE TABLE IF NOT EXISTS attachments (
+    // Tabela de attachments
+    db.run(`CREATE TABLE IF NOT EXISTS attachments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
     type_id INTEGER NOT NULL,
     FOREIGN KEY (type_id) REFERENCES attachment_types (id) ON DELETE CASCADE
   )`);
 
-  // === TABELAS DE RELACIONAMENTO ===
+    // === TABELAS DE RELACIONAMENTO ===
 
-  // Item <-> Tags (many-to-many)
-  db.run(`CREATE TABLE IF NOT EXISTS item_tags (
+    // Item <-> Tags (many-to-many)
+    db.run(`CREATE TABLE IF NOT EXISTS item_tags (
     item_id INTEGER NOT NULL,
     tag_id INTEGER NOT NULL,
     PRIMARY KEY (item_id, tag_id),
@@ -140,8 +140,8 @@ const createTables = () => {
     FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
   )`);
 
-  // Item <-> Usage (many-to-many)
-  db.run(`CREATE TABLE IF NOT EXISTS item_usage (
+    // Item <-> Usage (many-to-many)
+    db.run(`CREATE TABLE IF NOT EXISTS item_usage (
     item_id INTEGER NOT NULL,
     usage_id INTEGER NOT NULL,
     PRIMARY KEY (item_id, usage_id),
@@ -149,8 +149,8 @@ const createTables = () => {
     FOREIGN KEY (usage_id) REFERENCES usage_types (id) ON DELETE CASCADE
   )`);
 
-  // Item <-> Ammo Types (many-to-many)
-  db.run(`CREATE TABLE IF NOT EXISTS item_ammo_types (
+    // Item <-> Ammo Types (many-to-many)
+    db.run(`CREATE TABLE IF NOT EXISTS item_ammo_types (
     item_id INTEGER NOT NULL,
     ammo_type_id INTEGER NOT NULL,
     PRIMARY KEY (item_id, ammo_type_id),
@@ -158,8 +158,8 @@ const createTables = () => {
     FOREIGN KEY (ammo_type_id) REFERENCES ammo_types (id) ON DELETE CASCADE
   )`);
 
-  // Item <-> Magazines (many-to-many)
-  db.run(`CREATE TABLE IF NOT EXISTS item_magazines (
+    // Item <-> Magazines (many-to-many)
+    db.run(`CREATE TABLE IF NOT EXISTS item_magazines (
     item_id INTEGER NOT NULL,
     magazine_id INTEGER NOT NULL,
     PRIMARY KEY (item_id, magazine_id),
@@ -167,8 +167,8 @@ const createTables = () => {
     FOREIGN KEY (magazine_id) REFERENCES magazines (id) ON DELETE CASCADE
   )`);
 
-  // Item <-> Attachments (many-to-many)
-  db.run(`CREATE TABLE IF NOT EXISTS item_attachments (
+    // Item <-> Attachments (many-to-many)
+    db.run(`CREATE TABLE IF NOT EXISTS item_attachments (
     item_id INTEGER NOT NULL,
     attachment_id INTEGER NOT NULL,
     PRIMARY KEY (item_id, attachment_id),
@@ -176,7 +176,7 @@ const createTables = () => {
     FOREIGN KEY (attachment_id) REFERENCES attachments (id) ON DELETE CASCADE
   )`);
 
-  console.log('Database schema v0.4 created successfully!');
+    console.log('Database schema v0.4 created successfully!');
 };
 
 // Executar

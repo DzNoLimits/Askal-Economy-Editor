@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+qimport React, { useState, useEffect } from 'react';
 import './ItemDetailsV04.css';
 
 const ItemDetailsV04 = ({ item, onUpdateItem, categories }) => {
