@@ -102,12 +102,30 @@
 .tier-checkbox {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.75rem;
   cursor: pointer;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 2px solid #e9ecef;
-  transition: all 0.2s ease;
+  padding: 0.75rem 1.25rem;
+  border-radius: 12px;
+  border: 2px solid var(--border-color);
+  background: var(--bg-hover);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.tier-checkbox::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.tier-checkbox:hover::before {
+  left: 100%;
 }
 
 .tier-checkbox input[type="checkbox"] {
@@ -115,26 +133,30 @@
 }
 
 .tier-label {
-  font-weight: 500;
-  font-size: 12px;
+  font-weight: 600;
+  font-size: 0.9rem;
   text-transform: uppercase;
-  transition: all 0.2s ease;
+  color: var(--text-primary);
+  transition: all 0.3s ease;
 }
 
 .tier-checkbox input:checked + .tier-label {
   color: white;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .tier-checkbox:has(input:checked) {
   border-color: transparent;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .tier-checkbox:has(input:checked).tier-checkbox:has(.tier-1) {
-  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  background: linear-gradient(135deg, var(--accent-green), #27ae60);
 }
 
 .tier-checkbox:has(input:checked).tier-checkbox:has(.tier-2) {
-  background: linear-gradient(135deg, #f39c12, #e67e22);
+  background: linear-gradient(135deg, var(--accent-orange), #f39c12);
 }
 
 .tier-checkbox:has(input:checked).tier-checkbox:has(.tier-3) {
@@ -142,7 +164,7 @@
 }
 
 .tier-checkbox:has(input:checked).tier-checkbox:has(.tier-4) {
-  background: linear-gradient(135deg, #9b59b6, #8e44ad);
+  background: linear-gradient(135deg, var(--accent-purple), #8e44ad);
 }
 
 /* Lifetime Slider */
