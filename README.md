@@ -154,9 +154,9 @@ npm start
 ### 4️⃣ Economy Values Layout
 ```
 ┌─────────────────────────────────────────────────┐
-│ Nominal │   Min   │ QuantMax │ QuantMin │        │
+│ Nominal │   Min   │ QuantMax │ QuantMin │       │
 ├─────────────────────────────────────────────────┤
-│    Lifetime     │       Restock      │           │
+│    Lifetime     │       Restock      │          │
 └─────────────────────────────────────────────────┘
 ```
 - ✅ API REST com Node.js
