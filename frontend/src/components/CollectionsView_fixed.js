@@ -10,7 +10,7 @@ const CollectionsView = () => {
     const [items, setItems] = useState([]);
     const [selectedItem, setSelectedItem] = useState(null);
     const [loading, setLoading] = useState(false);
-    
+
     // Estados para redimensionamento das colunas
     const [leftWidth, setLeftWidth] = useState(400); // Aumentado para categories+items
     const [isResizing, setIsResizing] = useState(false);
@@ -18,7 +18,10 @@ const CollectionsView = () => {
 
     // Carregar Collections
     useEffect(() => {
-        fetchCollections();
+        // Inicializar em modo local - não buscar do backend por enquanto
+        console.log('🔍 Inicializando em modo local...');
+        setCollections([]);
+        setLoading(false);
     }, []);
 
     // Handlers para redimensionamento
@@ -31,11 +34,11 @@ const CollectionsView = () => {
 
     const handleMouseMove = (e) => {
         if (!isResizing || !containerRef.current) return;
-        
+
         const containerRect = containerRef.current.getBoundingClientRect();
         const containerWidth = containerRect.width;
         const newLeftWidth = e.clientX - containerRect.left;
-        
+
         if (newLeftWidth >= 250 && newLeftWidth <= containerWidth - 300) {
             setLeftWidth(newLeftWidth);
         }
@@ -59,29 +62,34 @@ const CollectionsView = () => {
     const fetchCollections = async () => {
         try {
             setLoading(true);
-            console.log('🔍 Testing API connection...');
+            console.log('🔍 Fetching categories as collections...');
 
-            // Testar conexão básica
-            const response = await fetch('http://localhost:3003/api/collections');
+            // Buscar categorias do backend (usaremos como collections)
+            const response = await fetch('http://localhost:3001/categories');
             console.log('📡 Response status:', response.status);
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
+
+            const backendCategories = await response.json();
+            console.log('� Backend categories:', backendCategories);
+
+            // Converter categorias do backend para o formato de collections
+            const collectionsFromBackend = backendCategories.map(category => ({
+                id: category.id,
+                name: category.name,
+                display_name: category.name.charAt(0).toUpperCase() + category.name.slice(1),
+                description: `Collection for ${category.name}`,
+                icon: '📁',
+                color: '#4a90e2',
+                category_count: 1,
+                item_count: 0
+            }));
+
+            setCollections(collectionsFromBackend);
+            console.log('✅ Collections loaded:', collectionsFromBackend.length);
             
-            const data = await response.json();
-            console.log('📊 Raw response data:', data);
-            console.log('📊 Data type:', typeof data);
-            console.log('📊 Is array:', Array.isArray(data));
-            console.log('📊 Data length:', data?.length);
-            
-            if (Array.isArray(data)) {
-                setCollections(data);
-                console.log('✅ Collections state updated with', data.length, 'items');
-            } else {
-                console.error('❌ Data is not an array:', data);
-                setCollections([]);
-            }
         } catch (error) {
             console.error('❌ Error fetching collections:', error);
             setCollections([]);
@@ -91,37 +99,27 @@ const CollectionsView = () => {
     };
 
     const fetchCategories = async (collectionId) => {
-        try {
-            setLoading(true);
-            const response = await fetch(`http://localhost:3003/api/collections/${collectionId}/categories`);
-            const data = await response.json();
-            setCategories(data);
-        } catch (error) {
-            console.error('Error fetching categories:', error);
-        } finally {
-            setLoading(false);
-        }
+        // Modo local - filtrar categorias por collection_id
+        const localCategories = categories.filter(cat => cat.collection_id === collectionId);
+        console.log(`🔍 Categories for collection ${collectionId}:`, localCategories);
+        return localCategories;
     };
 
     const fetchItems = async (categoryId) => {
-        try {
-            setLoading(true);
-            const response = await fetch(`http://localhost:3003/api/categories/${categoryId}/items?expand=variants`);
-            const data = await response.json();
-            setItems(data);
-        } catch (error) {
-            console.error('Error fetching items:', error);
-        } finally {
-            setLoading(false);
-        }
+        // Modo local - filtrar items por category_id  
+        const localItems = items.filter(item => item.category_id === categoryId);
+        console.log(`🔍 Items for category ${categoryId}:`, localItems);
+        return localItems;
     };
 
     const handleCollectionSelect = (collection) => {
         setSelectedCollection(collection);
         setSelectedCategory(null);
-        setCategories([]);
-        setItems([]);
-        fetchCategories(collection.id);
+        setSelectedItem(null);
+        
+        // Filtrar categorias desta collection
+        const collectionCategories = categories.filter(cat => cat.collection_id === collection.id);
+        console.log(`🔍 Selecionando collection: ${collection.display_name}, ${collectionCategories.length} categorias`);
     };
 
     const handleCategorySelect = (category) => {
@@ -136,7 +134,7 @@ const CollectionsView = () => {
     };
 
     const handleItemUpdate = (updatedItem) => {
-        setItems(prev => prev.map(item => 
+        setItems(prev => prev.map(item =>
             item.id === updatedItem.id ? updatedItem : item
         ));
         setSelectedItem(updatedItem);
@@ -155,7 +153,7 @@ const CollectionsView = () => {
                 category_count: 0,
                 item_count: 0
             };
-            
+
             // Adicionar à lista local (em produção seria uma chamada à API)
             setCollections(prev => [...prev, newCollection]);
             console.log('✅ Nova coleção criada:', newCollection);
@@ -164,7 +162,7 @@ const CollectionsView = () => {
 
     const handleCreateCategory = () => {
         if (!selectedCollection) return;
-        
+
         const name = prompt('Nome da nova categoria:');
         if (name && name.trim()) {
             const newCategory = {
@@ -175,24 +173,24 @@ const CollectionsView = () => {
                 collection_id: selectedCollection.id,
                 item_count: 0
             };
-            
+
             // Adicionar à lista local (em produção seria uma chamada à API)
             setCategories(prev => [...prev, newCategory]);
-            
+
             // Atualizar o contador da collection
-            setCollections(prev => prev.map(col => 
-                col.id === selectedCollection.id 
+            setCollections(prev => prev.map(col =>
+                col.id === selectedCollection.id
                     ? { ...col, category_count: col.category_count + 1 }
                     : col
             ));
-            
+
             console.log('✅ Nova categoria criada:', newCategory);
         }
     };
 
     const handleCreateItem = () => {
         if (!selectedCategory) return;
-        
+
         const classname = prompt('Classname do novo item (ex: AKM, M4A1, etc):');
         if (classname && classname.trim()) {
             const newItem = {
@@ -219,24 +217,183 @@ const CollectionsView = () => {
                 usage: [selectedCategory.display_name?.toLowerCase() || 'tools'], // Usar categoria como usage inicial
                 variants: []
             };
-            
+
             // Adicionar à lista local (em produção seria uma chamada à API)
             setItems(prev => [...prev, newItem]);
-            
+
             // Atualizar contadores
-            setCategories(prev => prev.map(cat => 
-                cat.id === selectedCategory.id 
+            setCategories(prev => prev.map(cat =>
+                cat.id === selectedCategory.id
                     ? { ...cat, item_count: cat.item_count + 1 }
                     : cat
             ));
-            
-            setCollections(prev => prev.map(col => 
-                col.id === selectedCollection.id 
+
+            setCollections(prev => prev.map(col =>
+                col.id === selectedCollection.id
                     ? { ...col, item_count: col.item_count + 1 }
                     : col
             ));
-            
+
             console.log('✅ Novo item criado:', newItem);
+        }
+    };
+
+    // Função para importar JSON do DayZ
+    const handleImportJSON = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                const jsonData = JSON.parse(text);
+                
+                console.log('📋 JSON importado:', jsonData);
+                
+                // Processar a estrutura do JSON
+                await processImportedJSON(jsonData);
+                
+            } catch (error) {
+                console.error('❌ Erro ao importar JSON:', error);
+                alert('Erro ao processar o arquivo JSON. Verifique o formato.');
+            }
+        };
+        input.click();
+    };
+
+    const processImportedJSON = async (jsonData) => {
+        try {
+            setLoading(true);
+            
+            // Criar uma nova collection baseada no arquivo
+            const collectionName = jsonData.database_version ? 
+                `Weapons_v${jsonData.database_version}` : 
+                'Imported_Weapons';
+                
+            const newCollection = {
+                id: Date.now(),
+                name: collectionName.toLowerCase(),
+                display_name: collectionName,
+                description: `Importado em ${new Date().toLocaleDateString()}`,
+                icon: '🔫',
+                color: '#ef4444',
+                category_count: 0,
+                item_count: 0
+            };
+
+            // Adicionar collection
+            setCollections(prev => [...prev, newCollection]);
+            
+            // Processar categorias
+            const categoriesFromJson = jsonData.Categories || {};
+            const newCategories = [];
+            const newItems = [];
+            let totalItems = 0;
+
+            for (const [categoryName, items] of Object.entries(categoriesFromJson)) {
+                const categoryId = Date.now() + newCategories.length + Math.random() * 10000;
+                console.log(`🔍 Criando categoria: ${categoryName} com ID: ${categoryId}`);
+                
+                const newCategory = {
+                    id: categoryId,
+                    name: categoryName.toLowerCase(),
+                    display_name: categoryName,
+                    description: `Categoria ${categoryName}`,
+                    collection_id: newCollection.id,
+                    item_count: Object.keys(items).length
+                };
+                
+                newCategories.push(newCategory);
+                
+                // Processar items da categoria
+                let itemIndex = 0;
+                for (const [itemName, itemData] of Object.entries(items)) {
+                    const itemId = Date.now() + totalItems + itemIndex + Math.random() * 10000;
+                    console.log(`🔍 Criando item: ${itemName} para categoria ID: ${categoryId}`);
+                    
+                    const newItem = {
+                        id: itemId,
+                        classname: itemName,
+                        category_id: categoryId,
+                        
+                        // Parâmetros básicos
+                        nominal: itemData.nominal || 0,
+                        min: itemData.min || 0,
+                        tier: Array.isArray(itemData.tier) ? itemData.tier : [itemData.tier || 1],
+                        lifetime: itemData.lifetime || 14400,
+                        restock: itemData.restock || 1800,
+                        quantmin: itemData.quantmin || -1,
+                        quantmax: itemData.quantmax || -1,
+                        price: itemData.cost || itemData.value || 100,
+                        
+                        // Flags
+                        flags: {
+                            Dispatch: itemData.flags?.Dispatch ?? false,
+                            Events: itemData.flags?.Events ?? true,
+                            Market: itemData.flags?.Market ?? true,
+                            P2P: itemData.flags?.P2P ?? true,
+                            Secure: itemData.flags?.Secure ?? true,
+                            Store: itemData.flags?.Store ?? true
+                        },
+                        
+                        // Arrays
+                        tags: [], // Será herdado ou configurado manualmente
+                        usage: [categoryName.toLowerCase()], // Usar categoria como usage
+                        category: 'weapons', // Categoria geral
+                        
+                        // Attachments
+                        attachments: itemData.attachments || {},
+                        
+                        // Variantes
+                        variants: itemData.variants || {},
+                        
+                        // Dados extras do DayZ
+                        ammo_types: itemData.ammo_types || [],
+                        magazines: itemData.magazines || []
+                    };
+                    
+                    totalItems++;
+                    itemIndex++;
+                    newItems.push(newItem);
+                }
+            }
+            
+            // Atualizar contadores da collection
+            newCollection.category_count = newCategories.length;
+            newCollection.item_count = totalItems;
+            
+            // Adicionar tudo de uma vez e forçar re-render
+            const updatedCollections = [...collections, newCollection];
+            const updatedCategories = [...categories, ...newCategories];
+            const updatedItems = [...items, ...newItems];
+            
+            // Atualizar estados sequencialmente
+            setCollections(updatedCollections);
+            setCategories(updatedCategories);
+            setItems(updatedItems);
+            
+            // Debug logs
+            console.log('🔍 Categories criadas:', newCategories.map(c => ({id: c.id, name: c.display_name})));
+            console.log('🔍 Items criados:', newItems.map(i => ({id: i.id, classname: i.classname, category_id: i.category_id})));
+            console.log('🔍 Estados finais - Collections:', updatedCollections.length, 'Categories:', updatedCategories.length, 'Items:', updatedItems.length);
+            
+            // Aguardar um momento antes de selecionar a collection
+            setTimeout(() => {
+                setSelectedCollection(newCollection);
+                console.log('🔍 Collection selecionada:', newCollection.display_name);
+            }, 200);
+            
+            console.log(`✅ Importação concluída: ${newCategories.length} categorias, ${totalItems} items`);
+            alert(`Importação concluída!\n${newCategories.length} categorias\n${totalItems} items`);
+            
+        } catch (error) {
+            console.error('❌ Erro no processamento:', error);
+            alert('Erro ao processar os dados importados.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -262,12 +419,19 @@ const CollectionsView = () => {
             {/* Collections bar horizontal */}
             <div className="collections-bar">
                 <div className="collections-horizontal">
-                    <button 
+                    <button
                         className="create-collection-btn-horizontal"
                         onClick={handleCreateCollection}
                         title="Criar nova coleção"
                     >
-                        ➕ Nova Collection
+                        ➕ Nova Coleção
+                    </button>
+                    <button
+                        className="import-json-btn-horizontal"
+                        onClick={handleImportJSON}
+                        title="Importar JSON do DayZ"
+                    >
+                        📋 Importar JSON
                     </button>
                     {collections.length > 0 ? (
                         collections.map(collection => (
@@ -284,15 +448,15 @@ const CollectionsView = () => {
                         ))
                     ) : (
                         <div className="empty-collections-horizontal">
-                            <span>� Nenhuma coleção</span>
+                            <span>❗️ Nenhuma coleção</span>
                         </div>
                     )}
                 </div>
             </div>
 
             {/* Layout principal com 2 colunas */}
-            <div 
-                className="main-layout" 
+            <div
+                className="main-layout"
                 ref={containerRef}
                 style={{
                     display: 'flex',
@@ -302,7 +466,7 @@ const CollectionsView = () => {
             >
                 {/* Categories Panel com Items */}
                 {selectedCollection && (
-                    <div 
+                    <div
                         className="categories-panel-main"
                         style={{
                             width: `${leftWidth}px`,
@@ -314,7 +478,7 @@ const CollectionsView = () => {
                     >
                         <div className="categories-header-compact">
                             <h2>📂 {selectedCollection.display_name}</h2>
-                            <button 
+                            <button
                                 className="create-category-btn-compact"
                                 onClick={handleCreateCategory}
                                 title="Criar nova categoria"
@@ -338,13 +502,13 @@ const CollectionsView = () => {
                                                 <div className="category-selected-indicator">▼</div>
                                             )}
                                         </div>
-                                        
+
                                         {/* Items dentro da categoria selecionada */}
                                         {selectedCategory?.id === category.id && (
                                             <div className="items-in-category-compact">
                                                 <div className="items-header-compact">
                                                     <span>📄 Items</span>
-                                                    <button 
+                                                    <button
                                                         className="create-item-btn-compact"
                                                         onClick={handleCreateItem}
                                                         title="Criar novo item"
@@ -352,33 +516,42 @@ const CollectionsView = () => {
                                                         ➕
                                                     </button>
                                                 </div>
-                                                {items.length > 0 ? (
-                                                    <div className="items-list-compact">
-                                                        {items.map(item => (
-                                                            <div 
-                                                                key={item.id} 
-                                                                className={`item-card-compact ${selectedItem?.id === item.id ? 'selected' : ''}`}
-                                                                onClick={() => handleItemSelect(item)}
-                                                            >
-                                                                <div className="item-header-compact">
-                                                                    <div className="item-name-compact">{item.classname}</div>
-                                                                    <div className="item-tier-compact">
-                                                                        T{Array.isArray(item.tier) ? item.tier.join(',') : item.tier}
+                                                {(() => {
+                                                    console.log('🔍 Estado items no momento do filtro:', items.length);
+                                                    const categoryItems = items.filter(item => item.category_id === category.id);
+                                                    console.log(`🔍 Filtro Debug - Category ID: ${category.id}, Items encontrados: ${categoryItems.length}`);
+                                                    console.log(`🔍 Total items disponíveis: ${items.length}`);
+                                                    console.log(`🔍 Categoria: ${category.display_name}`);
+                                                    console.log(`🔍 Items com category_id:`, items.map(i => ({classname: i.classname, category_id: i.category_id})));
+                                                    
+                                                    return categoryItems.length > 0 ? (
+                                                        <div className="items-list-compact">
+                                                            {categoryItems.map(item => (
+                                                                <div
+                                                                    key={item.id}
+                                                                    className={`item-card-compact ${selectedItem?.id === item.id ? 'selected' : ''}`}
+                                                                    onClick={() => handleItemSelect(item)}
+                                                                >
+                                                                    <div className="item-header-compact">
+                                                                        <div className="item-name-compact">{item.classname}</div>
+                                                                        <div className="item-tier-compact">
+                                                                            T{Array.isArray(item.tier) ? item.tier.join(',') : item.tier}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="item-stats-compact">
+                                                                        <span>N:{item.nominal}</span>
+                                                                        <span>M:{item.min}</span>
+                                                                        <span>${item.price || item.cost || 100}</span>
                                                                     </div>
                                                                 </div>
-                                                                <div className="item-stats-compact">
-                                                                    <span>N:{item.nominal}</span>
-                                                                    <span>M:{item.min}</span>
-                                                                    <span>${item.price || item.cost || 100}</span>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <div className="no-items-compact">
-                                                        <p>📄 Nenhum item</p>
-                                                    </div>
-                                                )}
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="no-items-compact">
+                                                            <p>📄 Nenhum item</p>
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         )}
                                     </div>
@@ -411,17 +584,17 @@ const CollectionsView = () => {
                 />
 
                 {/* Item Details Panel */}
-                <div 
+                <div
                     className="item-details-panel-main"
-                    style={{ 
+                    style={{
                         flex: 1,
                         minWidth: '300px',
                         overflow: 'auto'
                     }}
                 >
                     {selectedItem ? (
-                        <ItemDetailsV05 
-                            item={selectedItem} 
+                        <ItemDetailsV05
+                            item={selectedItem}
                             onUpdateItem={handleItemUpdate}
                             categories={categories || []}
                         />

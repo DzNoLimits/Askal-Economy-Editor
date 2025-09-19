@@ -1,0 +1,621 @@
+{
+    "database_version": "0.3",
+    "last_updated": "2025-09-17",
+    "CategoryDefaults": {
+        "AR's": {
+            "restock": 1800,
+            "cost": 4200
+        },
+        "DMR's": {
+            "restock": 1800,
+            "cost": 5200
+        },
+        "Pistols": {
+            "restock": 1800,
+            "cost": 1800
+        },
+        "SMG's": {
+            "restock": 1800,
+            "cost": 3800
+        },
+        "SR's": {
+            "restock": 1800,
+            "cost": 3200
+        },
+        "Shotguns": {
+            "restock": 1800,
+            "cost": 4000
+        }
+    },
+    "Categories": {
+        "AR's": {
+            "AK101": {
+                "ammo_types": [
+                    "Ammo_556x45",
+                    "Ammo_556x45Tracer"
+                ],
+                "attachments": {
+                    "buttstocks": [
+                        "AK_WoodBttstck",
+                        "AK_FoldingBttstck",
+                        "AK_PlasticBttstck"
+                    ],
+                    "optics": [
+                        "KashtanOptic",
+                        "PSO1Optic",
+                        "KobraOptic"
+                    ],
+                    "suppressors": [
+                        "ImprovisedSuppressor",
+                        "AK_Suppressor"
+                    ]
+                },
+                "cost": 4200,
+                "flags": {
+                    "Dispatch": false,
+                    "Events": false,
+                    "Market": false,
+                    "P2P": false,
+                    "Secure": false,
+                    "Store": false
+                },
+                "lifetime": 14400,
+                "magazines": [
+                    "Mag_AK101_30Rnd",
+                    "ASK_Mag_AK101Coupled_60Rnd"
+                ],
+                "min": 0,
+                "nominal": 0,
+                "quantmax": -1,
+                "quantmin": -1,
+                "restock": 1800,
+                "tier": 4,
+                "value": 4200,
+                "variants": {
+                    "AK101_Green": {}
+                }
+            },
+            "AKM": {
+                "ammo_types": [
+                    "Ammo_762x39",
+                    "Ammo_762x39Tracer"
+                ],
+                "attachments": {
+                    "bayonets": [
+                        "AK_Bayonet"
+                    ],
+                    "buttstocks": [
+                        "AK_WoodBttstck",
+                        "AK_FoldingBttstck",
+                        "AK_PlasticBttstck"
+                    ],
+                    "lights": [
+                        "UniversalLight"
+                    ],
+                    "optics": [
+                        "KashtanOptic",
+                        "PSO1Optic",
+                        "KobraOptic",
+                        "Akol_AKMount_ACOGOptic"
+                    ],
+                    "suppressors": [
+                        "ImprovisedSuppressor",
+                        "AK_Suppressor",
+                        "ASK_AK_SuppressorCovered"
+                    ]
+                },
+                "cost": 4200,
+                "flags": {
+                    "Events": true,
+                    "Market": true,
+                    "P2P": true,
+                    "Secure": true,
+                    "Store": true
+                },
+                "lifetime": 14400,
+                "magazines": [
+                    "Mag_AKM_30Rnd",
+                    "Mag_AKM_Drum75Rnd",
+                    "ASK_Mag_AKMCoupled_60Rnd"
+                ],
+                "min": 0,
+                "nominal": 0,
+                "quantmax": -1,
+                "quantmin": -1,
+                "restock": 1800,
+                "tier": 3,
+                "value": 3800,
+                "variants": {}
+            },
+            "M4A1": {
+                "ammo_types": [
+                    "Ammo_556x45",
+                    "Ammo_556x45Tracer"
+                ],
+                "attachments": {
+                    "bayonets": [
+                        "M9A1_Bayonet"
+                    ],
+                    "buttstocks": [
+                        "M4_OEBttstck",
+                        "M4_MPBttstck",
+                        "M4_CQBBttstck"
+                    ],
+                    "lights": [
+                        "UniversalLight"
+                    ],
+                    "optics": [
+                        "M4_CarryHandleOptic",
+                        "BUISOptic",
+                        "M68Optic",
+                        "Akol_Exps"
+                    ],
+                    "suppressors": [
+                        "ImprovisedSuppressor",
+                        "M4_Suppressor",
+                        "ASK_M4_SuppressorCovered"
+                    ]
+                },
+                "cost": 4200,
+                "flags": {
+                    "Events": true,
+                    "Market": true,
+                    "P2P": true,
+                    "Secure": true,
+                    "Store": true
+                },
+                "lifetime": 14400,
+                "magazines": [
+                    "Mag_STANAG_30Rnd",
+                    "Mag_STANAG_60Rnd",
+                    "Mag_CMAG_30Rnd",
+                    "ASK_Mag_CMAGCoupled_60Rnd"
+                ],
+                "min": 0,
+                "nominal": 0,
+                "quantmax": -1,
+                "quantmin": -1,
+                "restock": 1800,
+                "tier": 34,
+                "value": 4500,
+                "variants": {
+                    "M4A1_Black": {
+                        "cost": 4600,
+                        "flags": {
+                            "Events": false,
+                            "Market": false
+                        },
+                        "attachments": {
+                            "buttstocks": [
+                                "M4_OEBttstck_Black",
+                                "M4_MPBttstck_Black",
+                                "M4_CQBBttstck_Black"
+                            ],
+                            "optics": [
+                                "M4_CarryHandleOptic_Black",
+                                "BUISOptic_Black"
+                            ],
+                            "suppressors": [
+                                "M4_Suppressor_Black"
+                            ]
+                        }
+                    },
+                    "M4A1_Green": {
+                        "cost": 4800,
+                        "flags": {
+                            "Events": false,
+                            "Market": false
+                        },
+                        "attachments": {
+                            "buttstocks": [
+                                "M4_OEBttstck_Green",
+                                "M4_MPBttstck_Green",
+                                "M4_CQBBttstck_Green"
+                            ],
+                            "optics": [
+                                "M4_CarryHandleOptic_Green",
+                                "BUISOptic_Green"
+                            ],
+                            "suppressors": [
+                                "M4_Suppressor_Green"
+                            ]
+                        }
+                    },
+                    "M4A1_Rusty": {
+                        "cost": 4000
+                    }
+                }
+            }
+        },
+        "DMR's": {
+            "SVD": {
+                "ammo_types": [
+                    "Ammo_762x54",
+                    "Ammo_762x54Tracer"
+                ],
+                "attachments": {
+                    "optics": [
+                        "PSO1Optic",
+                        "KashtanOptic"
+                    ],
+                    "suppressors": [
+                        "ImprovisedSuppressor",
+                        "AK_Suppressor"
+                    ]
+                },
+                "cost": 5200,
+                "flags": {
+                    "Events": true,
+                    "Market": true,
+                    "P2P": true,
+                    "Secure": true,
+                    "Store": true
+                },
+                "lifetime": 14400,
+                "magazines": [
+                    "Mag_SVD_10Rnd",
+                    "ASK_Mag_SVDCoupled_20Rnd"
+                ],
+                "min": 0,
+                "nominal": 0,
+                "quantmax": -1,
+                "quantmin": -1,
+                "restock": 1800,
+                "tier": 4,
+                "value": 5200,
+                "variants": {
+                    "SVD_Wooden": {}
+                }
+            }
+        },
+        "Pistols": {
+            "FNX45": {
+                "ammo_types": [
+                    "Ammo_45ACP"
+                ],
+                "attachments": {
+                    "lights": [
+                        "TLRLight"
+                    ],
+                    "optics": [
+                        "FNP45_MRDSOptic"
+                    ],
+                    "suppressors": [
+                        "ImprovisedSuppressor",
+                        "PistolSuppressor"
+                    ]
+                },
+                "cost": 1800,
+                "flags": {
+                    "Events": true,
+                    "Market": true,
+                    "P2P": true,
+                    "Secure": true,
+                    "Store": true
+                },
+                "lifetime": 14400,
+                "magazines": [
+                    "Mag_FNX45_15Rnd"
+                ],
+                "min": 0,
+                "nominal": 0,
+                "quantmax": -1,
+                "quantmin": -1,
+                "restock": 1800,
+                "tier": 2,
+                "value": 1800,
+                "variants": {}
+            },
+            "Glock19": {
+                "ammo_types": [
+                    "Ammo_9x19"
+                ],
+                "attachments": {
+                    "lights": [
+                        "TLRLight"
+                    ],
+                    "optics": [
+                        "FNP45_MRDSOptic"
+                    ],
+                    "suppressors": [
+                        "ImprovisedSuppressor",
+                        "PistolSuppressor"
+                    ]
+                },
+                "cost": 1800,
+                "flags": {
+                    "Events": true,
+                    "Market": true,
+                    "P2P": true,
+                    "Secure": true,
+                    "Store": true
+                },
+                "lifetime": 14400,
+                "magazines": [
+                    "Mag_Glock_15Rnd"
+                ],
+                "min": 0,
+                "nominal": 0,
+                "quantmax": -1,
+                "quantmin": -1,
+                "restock": 1800,
+                "tier": 2,
+                "value": 1600,
+                "variants": {}
+            }
+        },
+        "SMG's": {
+            "MP5K": {
+                "ammo_types": [
+                    "Ammo_9x19"
+                ],
+                "attachments": {
+                    "buttstocks": [
+                        "MP5k_StockBttstck"
+                    ],
+                    "lights": [
+                        "UniversalLight"
+                    ],
+                    "optics": [
+                        "M68Optic",
+                        "Akol_Exps"
+                    ],
+                    "suppressors": [
+                        "ImprovisedSuppressor",
+                        "PistolSuppressor"
+                    ]
+                },
+                "cost": 3800,
+                "flags": {
+                    "Events": true,
+                    "Market": true,
+                    "P2P": true,
+                    "Secure": true,
+                    "Store": true
+                },
+                "lifetime": 14400,
+                "magazines": [
+                    "Mag_MP5_30Rnd",
+                    "ASK_Mag_MP5Coupled_60Rnd"
+                ],
+                "min": 0,
+                "nominal": 0,
+                "quantmax": -1,
+                "quantmin": -1,
+                "restock": 1800,
+                "tier": 3,
+                "value": 3800,
+                "variants": {}
+            },
+            "UMP45": {
+                "ammo_types": [
+                    "Ammo_45ACP"
+                ],
+                "attachments": {
+                    "lights": [
+                        "UniversalLight"
+                    ],
+                    "optics": [
+                        "M68Optic",
+                        "Akol_Exps"
+                    ],
+                    "suppressors": [
+                        "ImprovisedSuppressor",
+                        "PistolSuppressor"
+                    ]
+                },
+                "cost": 3800,
+                "flags": {
+                    "Events": true,
+                    "Market": true,
+                    "P2P": true,
+                    "Secure": true,
+                    "Store": true
+                },
+                "lifetime": 14400,
+                "magazines": [
+                    "Mag_UMP_25Rnd",
+                    "ASK_Mag_UMPCoupled_50Rnd"
+                ],
+                "min": 0,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+}    return categoryObj[itemName]; // retorna o objeto do item    if (!categoryObj) return null;    const categoryObj = json.Categories[categoryName];function getItemDetails(json, categoryName, itemName) {}    }        }            }                }                    "M870_Wooden": {}                "variants": {                "value": 4000,                "tier": 4,                "restock": 1800,                "quantmin": -1,                "quantmax": -1,                "nominal": 0,                "min": 0,                ],                    "ASK_Mag_M870Coupled_14Rnd"                    "Mag_M870_7Rnd",                "magazines": [                "lifetime": 14400,                },                    "Store": true                    "Secure": true,                    "P2P": true,                    "Market": true,                    "Events": true,                "flags": {                "cost": 4000,                },                    ]                        "AK_Suppressor"                        "ImprovisedSuppressor",                    "suppressors": [                    ],                        "PSO1Optic"                        "KashtanOptic",                    "optics": [                    ],                        "M870_PistolGrip"                        "M870_WoodBttstck",                    "buttstocks": [                "attachments": {                ],                    "Ammo_12x70"                "ammo_types": [            "M870": {        "Shotguns": {        },            }                }                    "M24_Wooden": {}                "variants": {                "value": 3200,                "tier": 4,                "restock": 1800,                "quantmin": -1,                "quantmax": -1,                "nominal": 0,                "min": 0,                ],                    "ASK_Mag_M24Coupled_10Rnd"                    "Mag_M24_5Rnd",                "magazines": [                "lifetime": 14400,                },                    "Store": true                    "Secure": true,                    "P2P": true,                    "Market": true,                    "Events": true,                "flags": {                "cost": 3200,                },                    ]                        "AK_Suppressor"                        "ImprovisedSuppressor",                    "suppressors": [                    ],                        "KashtanOptic"                        "PSO1Optic",                    "optics": [                "attachments": {                ],                    "Ammo_762x51Tracer"                    "Ammo_762x51",                "ammo_types": [            "M24": {        "SR's": {        },            }                "variants": {}                "value": 3800,                "tier": 3,                "restock": 1800,                "quantmin": -1,                "quantmax": -1,                "nominal": 0,                "nominal": 0,
+                "quantmax": -1,
+                "quantmin": -1,
+                "restock": 1800,
+                "tier": 3,
+                "value": 3500,
+                "variants": {}
+            }
+        },
+        "SR's": {
+            "Mosin9130": {
+                "ammo_types": [
+                    "Ammo_762x54",
+                    "Ammo_762x54Tracer"
+                ],
+                "attachments": {
+                    "bayonets": [
+                        "Mosin_Bayonet"
+                    ],
+                    "optics": [
+                        "PUScopeOptic",
+                        "Akol_MosinMount_ACOGOptic"
+                    ],
+                    "suppressors": [
+                        "ImprovisedSuppressor",
+                        "ASK_Suppressor_Mosin"
+                    ]
+                },
+                "cost": 3200,
+                "flags": {
+                    "Events": true,
+                    "Market": true,
+                    "P2P": true,
+                    "Secure": true,
+                    "Store": true
+                },
+                "lifetime": 14400,
+                "magazines": [],
+                "min": 0,
+                "nominal": 0,
+                "quantmax": -1,
+                "quantmin": -1,
+                "restock": 1800,
+                "tier": 3,
+                "value": 3200,
+                "variants": {
+                    "Mosin9130_Black": {},
+                    "Mosin9130_Camo": {},
+                    "Mosin9130_Green": {}
+                }
+            }
+        },
+        "Shotguns": {
+            "Saiga": {
+                "ammo_types": [
+                    "Ammo_12gaPellets",
+                    "Ammo_12gaSlug"
+                ],
+                "attachments": {
+                    "buttstocks": [
+                        "Saiga_Bttstck"
+                    ],
+                    "lights": [
+                        "UniversalLight"
+                    ],
+                    "optics": [
+                        "M68Optic",
+                        "Akol_Exps"
+                    ],
+                    "suppressors": [
+                        "ImprovisedSuppressor",
+                        "ASK_Suppressor_Saiga"
+                    ]
+                },
+                "cost": 4000,
+                "flags": {
+                    "Events": true,
+                    "Market": true,
+                    "P2P": true,
+                    "Secure": true,
+                    "Store": true
+                },
+                "lifetime": 14400,
+                "magazines": [
+                    "Mag_Saiga_8Rnd",
+                    "Mag_Saiga_Drum20Rnd"
+                ],
+                "min": 0,
+                "nominal": 0,
+                "quantmax": -1,
+                "quantmin": -1,
+                "restock": 1800,
+                "tier": 3,
+                "value": 4000,
+                "variants": {}
+            }
+        }
+    }
+}

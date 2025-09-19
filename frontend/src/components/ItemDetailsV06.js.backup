@@ -1,0 +1,412 @@
+import React, { useState, useEffect } from 'react';
+import './ItemDetailsV06.css';
+
+const ItemDetailsV06 = ({ item, onSave, onCancel, mode = 'edit' }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    nominal: 0,
+    lifetime: 0,
+    restock: 0,
+    min: 0,
+    quantmin: -1,
+    quantmax: -1,
+    cost: 0,
+    tier: 1,
+    value: 0,
+    flags: {
+      Events: false,
+      Market: false,
+      P2P: false,
+      Secure: false,
+      Store: false,
+      Dispatch: false
+    }
+  });
+
+  const [variants, setVariants] = useState([]);
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [showVariantEditor, setShowVariantEditor] = useState(false);
+
+  useEffect(() => {
+    if (item) {
+      setFormData({
+        name: item.name || '',
+        nominal: item.nominal || 0,
+        lifetime: item.lifetime || 0,
+        restock: item.restock || 0,
+        min: item.min || 0,
+        quantmin: item.quantmin || -1,
+        quantmax: item.quantmax || -1,
+        cost: item.cost || 0,
+        tier: item.tier || 1,
+        value: item.value || 0,
+        flags: {
+          Events: item.flags?.Events || false,
+          Market: item.flags?.Market || false,
+          P2P: item.flags?.P2P || false,
+          Secure: item.flags?.Secure || false,
+          Store: item.flags?.Store || false,
+          Dispatch: item.flags?.Dispatch || false
+        }
+      });
+      
+      // Load variants if they exist
+      if (item && item.id) {
+        const loadVariants = async () => {
+          try {
+            const response = await fetch(`http://localhost:3001/items/${item.id}/variants`);
+            if (response.ok) {
+              const variantsData = await response.json();
+              setVariants(variantsData);
+            }
+          } catch (error) {
+            console.error('Error loading variants:', error);
+          }
+        };
+        loadVariants();
+      }
+    }
+  }, [item]);
+
+  const handleInputChange = (field, value) => {
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.');
+      setFormData(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
+  };
+
+  const handleSave = () => {
+    onSave({
+      ...item,
+      ...formData
+    });
+  };
+
+  const getRestockLabel = (value) => {
+    const labels = {
+      0: 'Disabled',
+      60: '1 minute',
+      600: '10 minutes',
+      1800: '30 minutes',
+      3600: '1 hour',
+      14400: '4 hours'
+    };
+    return labels[value] || `${value}s`;
+  };
+
+  const createVariant = () => {
+    setSelectedVariant(null);
+    setShowVariantEditor(true);
+  };
+
+  const editVariant = (variant) => {
+    setSelectedVariant(variant);
+    setShowVariantEditor(true);
+  };
+
+  if (!item) {
+    return (
+      <div className="item-details">
+        <div className="no-item-selected">
+          <p>Select an item to view details</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="item-details">
+      <div className="item-details-content">
+        
+        {/* Header */}
+        <div className="item-header">
+          <h2>{item.name}</h2>
+          <div className="header-buttons">
+            <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleSave}>Save</button>
+          </div>
+        </div>
+
+        {/* Basic Parameters Block */}
+        <div className="parameter-block">
+          <div className="block-header">
+            <span className="block-icon">🔧</span>
+            <h3>Basic Parameters</h3>
+          </div>
+          <div className="block-content">
+            <div className="parameter-row">
+              <div className="parameter-group">
+                <label>Name</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  placeholder="Item name"
+                />
+              </div>
+              <div className="parameter-group">
+                <label>Lifetime</label>
+                <input
+                  type="number"
+                  value={formData.lifetime}
+                  onChange={(e) => handleInputChange('lifetime', parseInt(e.target.value))}
+                  placeholder="Seconds"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Central Economy Parameters Block */}
+        <div className="parameter-block">
+          <div className="block-header">
+            <span className="block-icon">⚖️</span>
+            <h3>Central Economy Parameters</h3>
+          </div>
+          <div className="block-content">
+            <div className="parameter-row">
+              <div className="parameter-group">
+                <label>Nominal</label>
+                <input
+                  type="number"
+                  value={formData.nominal}
+                  onChange={(e) => handleInputChange('nominal', parseInt(e.target.value))}
+                />
+              </div>
+              <div className="parameter-group">
+                <label>Min</label>
+                <input
+                  type="number"
+                  value={formData.min}
+                  onChange={(e) => handleInputChange('min', parseInt(e.target.value))}
+                />
+              </div>
+              <div className="parameter-group">
+                <label>Tier</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="4"
+                  value={formData.tier}
+                  onChange={(e) => handleInputChange('tier', parseInt(e.target.value))}
+                />
+              </div>
+            </div>
+            <div className="parameter-row">
+              <div className="parameter-group">
+                <label>Quant Min</label>
+                <input
+                  type="number"
+                  value={formData.quantmin}
+                  onChange={(e) => handleInputChange('quantmin', parseInt(e.target.value))}
+                />
+              </div>
+              <div className="parameter-group">
+                <label>Quant Max</label>
+                <input
+                  type="number"
+                  value={formData.quantmax}
+                  onChange={(e) => handleInputChange('quantmax', parseInt(e.target.value))}
+                />
+              </div>
+              <div className="parameter-group restock-group">
+                <label>Restock: {getRestockLabel(formData.restock)}</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="5"
+                  value={[0, 60, 600, 1800, 3600, 14400].indexOf(formData.restock)}
+                  onChange={(e) => {
+                    const values = [0, 60, 600, 1800, 3600, 14400];
+                    handleInputChange('restock', values[parseInt(e.target.value)]);
+                  }}
+                  className="restock-slider"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Economy Values Block */}
+        <div className="parameter-block">
+          <div className="block-header">
+            <span className="block-icon">💰</span>
+            <h3>Economy Values</h3>
+          </div>
+          <div className="block-content">
+            <div className="parameter-row">
+              <div className="parameter-group">
+                <label>Cost</label>
+                <input
+                  type="number"
+                  value={formData.cost}
+                  onChange={(e) => handleInputChange('cost', parseInt(e.target.value))}
+                />
+              </div>
+              <div className="parameter-group">
+                <label>Value</label>
+                <input
+                  type="number"
+                  value={formData.value}
+                  onChange={(e) => handleInputChange('value', parseInt(e.target.value))}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Flags Block */}
+        <div className="parameter-block">
+          <div className="block-header">
+            <span className="block-icon">🚩</span>
+            <h3>Flags</h3>
+          </div>
+          <div className="block-content">
+            <div className="flags-grid">
+              {Object.entries(formData.flags).map(([key, value]) => (
+                <label key={key} className="flag-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={value}
+                    onChange={(e) => handleInputChange(`flags.${key}`, e.target.checked)}
+                  />
+                  <span className="flag-name">{key}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Variants Block */}
+        <div className="parameter-block">
+          <div className="block-header">
+            <span className="block-icon">📦</span>
+            <h3>Variants</h3>
+            <button className="btn btn-small btn-primary" onClick={createVariant}>
+              + Create Variant
+            </button>
+          </div>
+          <div className="block-content">
+            {variants.length === 0 ? (
+              <p className="no-variants">No variants defined for this item</p>
+            ) : (
+              <div className="variants-list">
+                {variants.map((variant, index) => (
+                  <div key={variant.id || index} className="item-card-compact selected variant-card">
+                    <div className="variant-info">
+                      <div className="variant-name">{variant.name}</div>
+                      <div className="variant-details">
+                        {variant.cost && <span className="variant-cost">Cost: {variant.cost}</span>}
+                        {variant.tier && <span className="variant-tier">Tier: {variant.tier}</span>}
+                        {variant.value && <span className="variant-value">Value: {variant.value}</span>}
+                      </div>
+                    </div>
+                    <div className="variant-actions">
+                      <button className="btn btn-small" onClick={() => editVariant(variant)}>
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Attachments Block */}
+        <div className="parameter-block">
+          <div className="block-header">
+            <span className="block-icon">🪛</span>
+            <h3>Attachments</h3>
+          </div>
+          <div className="block-content">
+            {/* Base Item Attachments */}
+            <div className="attachment-section">
+              <h4>Base Item</h4>
+              {item.attachments ? (
+                <div className="attachment-categories">
+                  {Object.entries(item.attachments).map(([category, items]) => (
+                    <div key={category} className="attachment-category">
+                      <h5>{category.charAt(0).toUpperCase() + category.slice(1)}</h5>
+                      <div className="attachment-items">
+                        {items.map((attachment, index) => (
+                          <span key={index} className="attachment-tag">{attachment}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="no-attachments">No attachments configured</p>
+              )}
+            </div>
+
+            {/* Variant Attachments */}
+            {variants.length > 0 && (
+              <div className="variant-attachments">
+                {variants.map((variant, index) => (
+                  variant.attachments && (
+                    <div key={variant.id || index} className="attachment-section variant-attachment-section">
+                      <h4>{variant.name}</h4>
+                      <div className="attachment-categories">
+                        {Object.entries(variant.attachments).map(([category, items]) => (
+                          <div key={category} className="attachment-category">
+                            <h5>{category.charAt(0).toUpperCase() + category.slice(1)}</h5>
+                            <div className="attachment-items">
+                              {items.map((attachment, itemIndex) => (
+                                <span key={itemIndex} className="attachment-tag variant-attachment">{attachment}</span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+      </div>
+
+      {/* Variant Editor Modal */}
+      {showVariantEditor && (
+        <div className="variant-editor-overlay">
+          <div className="variant-editor-modal">
+            <div className="modal-header">
+              <h3>{selectedVariant ? 'Edit Variant' : 'Create Variant'}</h3>
+              <button className="close-btn" onClick={() => setShowVariantEditor(false)}>×</button>
+            </div>
+            
+            <div className="modal-content">
+              <p>Variant editor will be implemented here with limited fields:</p>
+              <ul>
+                <li>Basic Parameters (Name, Lifetime)</li>
+                <li>Tier (CE Params)</li>
+                <li>Economy Values (Cost, Value)</li>
+              </ul>
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowVariantEditor(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ItemDetailsV06;

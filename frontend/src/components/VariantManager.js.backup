@@ -1,0 +1,258 @@
+import React, { useState, useEffect } from 'react';
+import './VariantManager.css';
+
+const VariantManager = ({ item, onClose, onVariantUpdate }) => {
+  const [variants, setVariants] = useState([]);
+  const [categoryDefaults, setCategoryDefaults] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [newVariant, setNewVariant] = useState({
+    variant_name: '',
+    classname: '',
+    cost: '',
+    flags: {},
+    attachments: {}
+  });
+
+  useEffect(() => {
+    const loadVariants = async () => {
+      try {
+        const response = await fetch(`http://localhost:3001/items/${item.id}/variants`);
+        const data = await response.json();
+        setVariants(data);
+      } catch (error) {
+        console.error('Error loading variants:', error);
+      }
+    };
+
+    const loadCategoryDefaults = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/category-defaults');
+        const data = await response.json();
+        setCategoryDefaults(data);
+      } catch (error) {
+        console.error('Error loading category defaults:', error);
+      }
+    };
+
+    if (item) {
+      loadVariants();
+      loadCategoryDefaults();
+    }
+  }, [item]);
+
+  const createVariant = async () => {
+    if (!newVariant.variant_name || !newVariant.classname) {
+      alert('Nome da variante e classname são obrigatórios');
+      return;
+    }
+
+    try {
+      const variantData = {
+        variant_name: newVariant.variant_name,
+        classname: newVariant.classname,
+        template_data: {
+          cost: newVariant.cost ? parseInt(newVariant.cost) : null,
+          flags: Object.keys(newVariant.flags).length > 0 ? newVariant.flags : null,
+          attachments: Object.keys(newVariant.attachments).length > 0 ? newVariant.attachments : null
+        }
+      };
+
+      const response = await fetch(`http://localhost:3001/items/${item.id}/variants/from-template`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(variantData)
+      });
+
+      if (response.ok) {
+        loadVariants();
+        setNewVariant({
+          variant_name: '',
+          classname: '',
+          cost: '',
+          flags: {},
+          attachments: {}
+        });
+        onVariantUpdate && onVariantUpdate();
+      } else {
+        throw new Error('Failed to create variant');
+      }
+    } catch (error) {
+      console.error('Error creating variant:', error);
+      alert('Erro ao criar variante');
+    }
+  };
+
+  const deleteVariant = async (variantId) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta variante?')) return;
+
+    try {
+      const response = await fetch(`http://localhost:3001/variants/${variantId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        loadVariants();
+        onVariantUpdate && onVariantUpdate();
+      } else {
+        throw new Error('Failed to delete variant');
+      }
+    } catch (error) {
+      console.error('Error deleting variant:', error);
+      alert('Erro ao excluir variante');
+    }
+  };
+
+  const getInheritedValue = (variantValue, baseValue, defaultValue) => {
+    if (variantValue !== null && variantValue !== undefined) return variantValue;
+    if (baseValue !== null && baseValue !== undefined) return baseValue;
+    return defaultValue;
+  };
+
+  const updateVariantFlags = (flag, value) => {
+    setNewVariant(prev => ({
+      ...prev,
+      flags: { ...prev.flags, [flag]: value }
+    }));
+  };
+
+  if (loading) return <div className="variant-loading">Carregando variantes...</div>;
+
+  return (
+    <div className="variant-manager-overlay">
+      <div className="variant-manager">
+        <div className="variant-header">
+          <h2>🎨 Gerenciar Variantes - {item.classname}</h2>
+          <button className="close-btn" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="variant-content">
+          {/* Item Base Info */}
+          <div className="base-item-info">
+            <h3>📦 Item Base</h3>
+            <div className="base-item-grid">
+              <div><strong>Classname:</strong> {item.classname}</div>
+              <div><strong>Categoria:</strong> {item.category_name}</div>
+              <div><strong>Cost:</strong> {item.cost}</div>
+              <div><strong>Tier:</strong> {item.tier}</div>
+            </div>
+          </div>
+
+          {/* Category Defaults */}
+          {Object.keys(categoryDefaults).length > 0 && (
+            <div className="category-defaults">
+              <h3>⚙️ Defaults da Categoria</h3>
+              <div className="defaults-grid">
+                <div><strong>Cost Padrão:</strong> {categoryDefaults.cost}</div>
+                <div><strong>Restock:</strong> {categoryDefaults.restock}</div>
+                <div><strong>Lifetime:</strong> {categoryDefaults.lifetime}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Existing Variants */}
+          <div className="existing-variants">
+            <h3>🔄 Variantes Existentes ({variants.length})</h3>
+            {variants.length === 0 ? (
+              <div className="no-variants">Nenhuma variante criada ainda</div>
+            ) : (
+              <div className="variants-list">
+                {variants.map(variant => (
+                  <div key={variant.id} className="variant-item">
+                    <div className="variant-info">
+                      <div className="variant-name">{variant.variant_name}</div>
+                      <div className="variant-classname">{variant.classname}</div>
+                      <div className="variant-props">
+                        <span className="prop">
+                          Cost: <strong>{getInheritedValue(variant.cost, item.cost, categoryDefaults.cost)}</strong>
+                          {variant.cost && <span className="override"> (override)</span>}
+                        </span>
+                        <span className="prop">
+                          Tier: <strong>{getInheritedValue(variant.tier, item.tier, 1)}</strong>
+                          {variant.tier && <span className="override"> (override)</span>}
+                        </span>
+                      </div>
+                    </div>
+                    <button 
+                      className="delete-variant-btn"
+                      onClick={() => deleteVariant(variant.id)}
+                    >
+                      🗑️ Excluir
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Create New Variant */}
+          <div className="create-variant">
+            <h3>➕ Criar Nova Variante</h3>
+            <div className="variant-form">
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Nome da Variante:</label>
+                  <input
+                    type="text"
+                    value={newVariant.variant_name}
+                    onChange={(e) => setNewVariant(prev => ({...prev, variant_name: e.target.value}))}
+                    placeholder="ex: M4A1_Black"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Classname:</label>
+                  <input
+                    type="text"
+                    value={newVariant.classname}
+                    onChange={(e) => setNewVariant(prev => ({...prev, classname: e.target.value}))}
+                    placeholder="ex: M4A1_Black"
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Cost Override:</label>
+                  <input
+                    type="number"
+                    value={newVariant.cost}
+                    onChange={(e) => setNewVariant(prev => ({...prev, cost: e.target.value}))}
+                    placeholder={`Padrão: ${item.cost || categoryDefaults.cost || 'N/A'}`}
+                  />
+                </div>
+              </div>
+
+              {/* Flags Override */}
+              <div className="flags-override">
+                <label>Flags Override:</label>
+                <div className="flags-grid">
+                  {['Events', 'Market', 'P2P', 'Secure', 'Store', 'Dispatch'].map(flag => (
+                    <label key={flag} className="flag-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={newVariant.flags[flag] || false}
+                        onChange={(e) => updateVariantFlags(flag, e.target.checked)}
+                      />
+                      {flag}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button 
+                  className="create-btn"
+                  onClick={createVariant}
+                  disabled={!newVariant.variant_name || !newVariant.classname}
+                >
+                  ✨ Criar Variante
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default VariantManager;
