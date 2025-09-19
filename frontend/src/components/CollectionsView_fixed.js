@@ -1,24 +1,67 @@
-import React, { useState, useEffect } from 'react';
-import './CollectionsView.css';
+import React, { useState, useEffect, useRef } from 'react';
+import './CollectionsViewCompact.css';
+import ItemDetailsV05 from './ItemDetailsV05_complete';
 
 const CollectionsView = () => {
     const [collections, setCollections] = useState([]);
     const [selectedCollection, setSelectedCollection] = useState(null);
     const [categories, setCategories] = useState([]);
-    const [expandedCategories, setExpandedCategories] = useState(new Set());
-    const [categoryItems, setCategoryItems] = useState({});
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [items, setItems] = useState([]);
     const [selectedItem, setSelectedItem] = useState(null);
     const [loading, setLoading] = useState(false);
+    
+    // Estados para redimensionamento das colunas
+    const [leftWidth, setLeftWidth] = useState(400); // Aumentado para categories+items
+    const [isResizing, setIsResizing] = useState(false);
+    const containerRef = useRef(null);
 
     // Carregar Collections
     useEffect(() => {
         fetchCollections();
     }, []);
 
+    // Handlers para redimensionamento
+    const handleMouseDown = () => {
+        setIsResizing(true);
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        document.body.style.cursor = 'col-resize';
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isResizing || !containerRef.current) return;
+        
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const containerWidth = containerRect.width;
+        const newLeftWidth = e.clientX - containerRect.left;
+        
+        if (newLeftWidth >= 250 && newLeftWidth <= containerWidth - 300) {
+            setLeftWidth(newLeftWidth);
+        }
+    };
+
+    const handleMouseUp = () => {
+        setIsResizing(false);
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.body.style.cursor = '';
+    };
+
+    // Cleanup
+    useEffect(() => {
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, []);
+
     const fetchCollections = async () => {
         try {
             setLoading(true);
-            console.log('🚀 Tentando buscar collections...');
+            console.log('🔍 Testing API connection...');
+
+            // Testar conexão básica
             const response = await fetch('http://localhost:3003/api/collections');
             console.log('📡 Response status:', response.status);
             
@@ -27,19 +70,21 @@ const CollectionsView = () => {
             }
             
             const data = await response.json();
-            console.log('📊 Collections data:', data);
-            console.log('📊 Collections data type:', typeof data);
-            console.log('📊 Collections array?:', Array.isArray(data));
-            console.log('📊 Collections length:', data?.length);
+            console.log('📊 Raw response data:', data);
+            console.log('📊 Data type:', typeof data);
+            console.log('📊 Is array:', Array.isArray(data));
+            console.log('📊 Data length:', data?.length);
             
             if (Array.isArray(data)) {
                 setCollections(data);
-                console.log('✅ Collections state updated!');
+                console.log('✅ Collections state updated with', data.length, 'items');
             } else {
                 console.error('❌ Data is not an array:', data);
+                setCollections([]);
             }
         } catch (error) {
             console.error('❌ Error fetching collections:', error);
+            setCollections([]);
         } finally {
             setLoading(false);
         }
@@ -48,10 +93,8 @@ const CollectionsView = () => {
     const fetchCategories = async (collectionId) => {
         try {
             setLoading(true);
-            console.log('🔍 Fetching categories for collection:', collectionId);
             const response = await fetch(`http://localhost:3003/api/collections/${collectionId}/categories`);
             const data = await response.json();
-            console.log('📂 Categories received:', data);
             setCategories(data);
         } catch (error) {
             console.error('Error fetching categories:', error);
@@ -60,491 +103,337 @@ const CollectionsView = () => {
         }
     };
 
+    const fetchItems = async (categoryId) => {
+        try {
+            setLoading(true);
+            const response = await fetch(`http://localhost:3003/api/categories/${categoryId}/items?expand=variants`);
+            const data = await response.json();
+            setItems(data);
+        } catch (error) {
+            console.error('Error fetching items:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleCollectionSelect = (collection) => {
         setSelectedCollection(collection);
-        setSelectedItem(null);
-        setExpandedCategories(new Set());
-        setCategoryItems({});
+        setSelectedCategory(null);
         setCategories([]);
+        setItems([]);
         fetchCategories(collection.id);
     };
 
-    const handleCategoryToggle = async (category) => {
-        const newExpanded = new Set(expandedCategories);
-        
-        if (expandedCategories.has(category.id)) {
-            // Collapse category
-            newExpanded.delete(category.id);
-        } else {
-            // Expand category - fetch items if not already loaded
-            newExpanded.add(category.id);
-            if (!categoryItems[category.id]) {
-                try {
-                    setLoading(true);
-                    const response = await fetch(`http://localhost:3003/api/categories/${category.id}/items?expand=variants`);
-                    const items = await response.json();
-                    setCategoryItems(prev => ({...prev, [category.id]: items}));
-                } catch (error) {
-                    console.error('Error fetching items:', error);
-                } finally {
-                    setLoading(false);
-                }
-            }
-        }
-        
-        setExpandedCategories(newExpanded);
+    const handleCategorySelect = (category) => {
+        setSelectedCategory(category);
+        setSelectedItem(null); // Reset item selection when changing category
+        setItems([]);
+        fetchItems(category.id);
     };
 
     const handleItemSelect = (item) => {
         setSelectedItem(item);
     };
 
+    const handleItemUpdate = (updatedItem) => {
+        setItems(prev => prev.map(item => 
+            item.id === updatedItem.id ? updatedItem : item
+        ));
+        setSelectedItem(updatedItem);
+    };
+
+    const handleCreateCollection = () => {
+        const name = prompt('Nome da nova coleção:');
+        if (name && name.trim()) {
+            const newCollection = {
+                id: Date.now(), // ID temporário
+                name: name.toLowerCase().replace(/\s+/g, '_'),
+                display_name: name,
+                description: '',
+                icon: '📁',
+                color: '#4a90e2',
+                category_count: 0,
+                item_count: 0
+            };
+            
+            // Adicionar à lista local (em produção seria uma chamada à API)
+            setCollections(prev => [...prev, newCollection]);
+            console.log('✅ Nova coleção criada:', newCollection);
+        }
+    };
+
+    const handleCreateCategory = () => {
+        if (!selectedCollection) return;
+        
+        const name = prompt('Nome da nova categoria:');
+        if (name && name.trim()) {
+            const newCategory = {
+                id: Date.now(), // ID temporário
+                name: name.toLowerCase().replace(/\s+/g, '_'),
+                display_name: name,
+                description: `Categoria ${name}`,
+                collection_id: selectedCollection.id,
+                item_count: 0
+            };
+            
+            // Adicionar à lista local (em produção seria uma chamada à API)
+            setCategories(prev => [...prev, newCategory]);
+            
+            // Atualizar o contador da collection
+            setCollections(prev => prev.map(col => 
+                col.id === selectedCollection.id 
+                    ? { ...col, category_count: col.category_count + 1 }
+                    : col
+            ));
+            
+            console.log('✅ Nova categoria criada:', newCategory);
+        }
+    };
+
+    const handleCreateItem = () => {
+        if (!selectedCategory) return;
+        
+        const classname = prompt('Classname do novo item (ex: AKM, M4A1, etc):');
+        if (classname && classname.trim()) {
+            const newItem = {
+                id: Date.now(), // ID temporário
+                classname: classname.trim(),
+                category_id: selectedCategory.id,
+                tier: [1], // Array de tiers
+                nominal: 10,
+                min: 5,
+                lifetime: 14400, // 4 horas
+                restock: 3600, // 1 hora
+                quantmin: 50,
+                quantmax: 80,
+                price: 100, // Movido para basic parameters
+                flags: {
+                    Dispatch: false,
+                    Events: true,
+                    Market: true,
+                    P2P: true,
+                    Secure: true,
+                    Store: true
+                },
+                tags: [],
+                usage: [selectedCategory.display_name?.toLowerCase() || 'tools'], // Usar categoria como usage inicial
+                variants: []
+            };
+            
+            // Adicionar à lista local (em produção seria uma chamada à API)
+            setItems(prev => [...prev, newItem]);
+            
+            // Atualizar contadores
+            setCategories(prev => prev.map(cat => 
+                cat.id === selectedCategory.id 
+                    ? { ...cat, item_count: cat.item_count + 1 }
+                    : cat
+            ));
+            
+            setCollections(prev => prev.map(col => 
+                col.id === selectedCollection.id 
+                    ? { ...col, item_count: col.item_count + 1 }
+                    : col
+            ));
+            
+            console.log('✅ Novo item criado:', newItem);
+        }
+    };
+
     if (loading && collections.length === 0) {
-        return <div className="loading">🔄 Loading Collections...</div>;
+        return <div className="loading">Loading Collections...</div>;
     }
 
-    console.log('🎯 Rendering component with collections:', collections.length);
-    console.log('🎯 Collections state:', collections);
+    console.log('🎯 Rendering with collections.length:', collections.length);
+    console.log('🎯 Collections array:', collections);
 
     return (
         <div className="collections-view">
-            <header className="collections-header">
-                <h1>🗂️ DayZ Economy Editor v2.0</h1>
-                <div style={{fontSize: '12px', color: '#888'}}>
-                    Collections: {collections.length} | Loading: {loading ? 'Yes' : 'No'}
+            {/* Header minimalista */}
+            <header className="collections-header-minimal">
+                <div className="header-content">
+                    <h1>🗂️ DayZ Economy Editor</h1>
+                    <div className="debug-info">
+                        Collections: {collections.length} | Categories: {categories.length} | Items: {items.length}
+                    </div>
                 </div>
             </header>
 
-            <div className="collections-layout">
-                {/* Collections Sidebar */}
-                <div className="collections-sidebar">
-                    <h2>📁 Collections</h2>
-                    <div className="collections-list">
-                        {collections.map(collection => (
+            {/* Collections bar horizontal */}
+            <div className="collections-bar">
+                <div className="collections-horizontal">
+                    <button 
+                        className="create-collection-btn-horizontal"
+                        onClick={handleCreateCollection}
+                        title="Criar nova coleção"
+                    >
+                        ➕ Nova Collection
+                    </button>
+                    {collections.length > 0 ? (
+                        collections.map(collection => (
                             <div
                                 key={collection.id}
-                                className={`collection-item ${selectedCollection?.id === collection.id ? 'selected' : ''}`}
+                                className={`collection-tab ${selectedCollection?.id === collection.id ? 'selected' : ''}`}
                                 onClick={() => handleCollectionSelect(collection)}
-                                style={{ borderLeft: `4px solid ${collection.color}` }}
+                                style={{ borderBottom: `3px solid ${collection.color}` }}
                             >
-                                <div className="collection-icon">{collection.icon}</div>
-                                <div className="collection-info">
-                                    <div className="collection-name">{collection.display_name}</div>
-                                    <div className="collection-stats">
-                                        {collection.category_count} categories
-                                    </div>
-                                </div>
+                                <div className="collection-tab-icon">{collection.icon}</div>
+                                <div className="collection-tab-name">{collection.display_name}</div>
+                                <div className="collection-tab-count">{collection.item_count}</div>
                             </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Categories & Items Panel */}
-                <div className="categories-items-panel">
-                    {selectedCollection ? (
-                        <>
-                            <div className="panel-header">
-                                <h2>📂 {selectedCollection.display_name} Categories</h2>
-                                <p style={{color: '#888', padding: '8px 16px', margin: 0}}>
-                                    Categories loaded: {categories.length} | Loading: {loading ? 'Yes' : 'No'}
-                                </p>
-                            </div>
-                            
-                            <div className="categories-list">
-                                {categories.length === 0 && !loading ? (
-                                    <div style={{padding: '20px', textAlign: 'center', color: '#888'}}>
-                                        No categories found for this collection
-                                    </div>
-                                ) : (
-                                    categories.map(category => (
-                                    <div key={category.id} className="category-section">
-                                        <div 
-                                            className={`category-header ${expandedCategories.has(category.id) ? 'expanded' : ''}`}
-                                            onClick={() => handleCategoryToggle(category)}
-                                        >
-                                            <div className="category-toggle">
-                                                <span className="toggle-icon">
-                                                    {expandedCategories.has(category.id) ? '▼' : '▶'}
-                                                </span>
-                                                <span className="category-name">{category.display_name}</span>
-                                            </div>
-                                            <div className="category-count">{category.item_count} items</div>
-                                        </div>
-                                        
-                                        {expandedCategories.has(category.id) && (
-                                            <div className="category-items">
-                                                {categoryItems[category.id] ? (
-                                                    categoryItems[category.id].length > 0 ? (
-                                                        categoryItems[category.id].map(item => (
-                                                            <div 
-                                                                key={item.id}
-                                                                className={`item-row ${selectedItem?.id === item.id ? 'selected' : ''}`}
-                                                                onClick={() => handleItemSelect(item)}
-                                                            >
-                                                                <div className="item-name">{item.display_name || item.classname}</div>
-                                                                <div className="item-details">
-                                                                    <span className="item-tier">T{item.tier}</span>
-                                                                    <span className="item-nominal">N:{item.nominal}</span>
-                                                                    <span className="item-min">M:{item.min}</span>
-                                                                </div>
-                                                            </div>
-                                                        ))
-                                                    ) : (
-                                                        <div className="no-items">No items in this category</div>
-                                                    )
-                                                ) : (
-                                                    <div className="loading-items">Loading items...</div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                    ))
-                                )}
-                            </div>
-                        </>
+                        ))
                     ) : (
-                        <div className="panel-placeholder">
-                            <div className="placeholder-content">
-                                <h2>📂 Select a Collection</h2>
-                                <p>Choose a collection from the sidebar to view categories and items</p>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Item Editor Panel - Always visible */}
-                <div className="item-editor-panel">
-                    {selectedItem ? (
-                        <>
-                            <div className="editor-header">
-                                <h2>⚙️ Edit Item: {selectedItem.display_name || selectedItem.classname}</h2>
-                                <button
-                                    className="close-editor-btn"
-                                    onClick={() => setSelectedItem(null)}
-                                >
-                                    ✕
-                                </button>
-                            </div>
-
-                            <div className="editor-content">
-                                <div className="editor-section">
-                                    <h3>📊 Basic Parameters</h3>
-                                    <div className="param-grid">
-                                        <div className="param-field">
-                                            <label>Display Name:</label>
-                                            <input
-                                                type="text"
-                                                value={selectedItem.display_name || selectedItem.classname}
-                                                onChange={(e) => setSelectedItem({ ...selectedItem, display_name: e.target.value })}
-                                            />
-                                        </div>
-
-                                        <div className="param-field">
-                                            <label>Classname:</label>
-                                            <input
-                                                type="text"
-                                                value={selectedItem.classname}
-                                                onChange={(e) => setSelectedItem({ ...selectedItem, classname: e.target.value })}
-                                            />
-                                        </div>
-
-                                        <div className="param-field tier-selector">
-                                            <label>Tiers:</label>
-                                            <div className="tier-checkboxes">
-                                                {[1, 2, 3, 4].map(tier => (
-                                                    <label key={tier} className="tier-checkbox">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={(selectedItem.tiers || []).includes(tier)}
-                                                            onChange={(e) => {
-                                                                const currentTiers = selectedItem.tiers || [];
-                                                                let newTiers;
-                                                                if (e.target.checked) {
-                                                                    newTiers = [...currentTiers, tier].sort();
-                                                                } else {
-                                                                    newTiers = currentTiers.filter(t => t !== tier);
-                                                                }
-                                                                setSelectedItem({ 
-                                                                    ...selectedItem, 
-                                                                    tiers: newTiers,
-                                                                    tier: newTiers[0] || 1 // mantém compatibilidade
-                                                                });
-                                                            }}
-                                                        />
-                                                        Tier {tier}
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="editor-section">
-                                    <h3>🎯 Spawn Parameters</h3>
-                                    <div className="param-grid">
-                                        <div className="param-field param-slider">
-                                            <label>Quantity Min: {selectedItem.min || 0}%</label>
-                                            <input
-                                                type="range"
-                                                min="0"
-                                                max="100"
-                                                value={selectedItem.min || 0}
-                                                onChange={(e) => {
-                                                    const newMin = parseInt(e.target.value);
-                                                    const currentMax = selectedItem.nominal || 0;
-                                                    setSelectedItem({ 
-                                                        ...selectedItem, 
-                                                        min: newMin,
-                                                        nominal: newMin > currentMax ? newMin : currentMax
-                                                    });
-                                                }}
-                                                className="slider"
-                                            />
-                                            <div className="slider-track">
-                                                <span>0%</span>
-                                                <span>100%</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="param-field param-slider">
-                                            <label>Quantity Max: {selectedItem.nominal || 0}%</label>
-                                            <input
-                                                type="range"
-                                                min="0"
-                                                max="100"
-                                                value={selectedItem.nominal || 0}
-                                                onChange={(e) => {
-                                                    const newMax = parseInt(e.target.value);
-                                                    const currentMin = selectedItem.min || 0;
-                                                    setSelectedItem({ 
-                                                        ...selectedItem, 
-                                                        nominal: newMax,
-                                                        min: newMax < currentMin ? newMax : currentMin
-                                                    });
-                                                }}
-                                                className="slider"
-                                            />
-                                            <div className="slider-track">
-                                                <span>0%</span>
-                                                <span>100%</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="param-field param-slider lifetime-slider">
-                                            <label>Lifetime: {(() => {
-                                                const lifetimeValues = [1, 2, 4, 24, 72, 168, 336, 720, -1]; // 1h, 2h, 4h, 1d, 3d, 1w, 2w, 1m, ∞
-                                                const lifetimeLabels = ['1h', '2h', '4h', '1 day', '3 days', '1 week', '2 weeks', '1 month', '∞'];
-                                                const currentIndex = lifetimeValues.findIndex(val => val === selectedItem.lifetime) || 0;
-                                                return lifetimeLabels[currentIndex];
-                                            })()}</label>
-                                            <input
-                                                type="range"
-                                                min="0"
-                                                max="8"
-                                                step="1"
-                                                value={(() => {
-                                                    const lifetimeValues = [1, 2, 4, 24, 72, 168, 336, 720, -1];
-                                                    const currentIndex = lifetimeValues.findIndex(val => val === selectedItem.lifetime);
-                                                    return currentIndex >= 0 ? currentIndex : 0;
-                                                })()}
-                                                onChange={(e) => {
-                                                    const lifetimeValues = [1, 2, 4, 24, 72, 168, 336, 720, -1]; // horas
-                                                    const selectedIndex = parseInt(e.target.value);
-                                                    setSelectedItem({ 
-                                                        ...selectedItem, 
-                                                        lifetime: lifetimeValues[selectedIndex]
-                                                    });
-                                                }}
-                                                className="slider lifetime-range"
-                                            />
-                                            <div className="lifetime-labels">
-                                                <span>1h</span>
-                                                <span>2h</span>
-                                                <span>4h</span>
-                                                <span>1d</span>
-                                                <span>3d</span>
-                                                <span>1w</span>
-                                                <span>2w</span>
-                                                <span>1m</span>
-                                                <span>∞</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="param-field">
-                                            <label>Restock (seconds):</label>
-                                            <input
-                                                type="number"
-                                                value={selectedItem.restock || 0}
-                                                onChange={(e) => setSelectedItem({ ...selectedItem, restock: parseInt(e.target.value) })}
-                                            />
-                                        </div>
-
-                                        <div className="param-field">
-                                            <label>Price:</label>
-                                            <input
-                                                type="number"
-                                                value={selectedItem.price || 100}
-                                                onChange={(e) => setSelectedItem({ ...selectedItem, price: parseInt(e.target.value) })}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="editor-section">
-                                    <h3>📊 Quantity Parameters</h3>
-                                    <div className="param-grid">
-                                        <div className="param-field">
-                                            <label>QuantMin (-1 = auto):</label>
-                                            <input
-                                                type="number"
-                                                value={selectedItem.quantmin || -1}
-                                                onChange={(e) => setSelectedItem({ ...selectedItem, quantmin: parseInt(e.target.value) })}
-                                            />
-                                        </div>
-
-                                        <div className="param-field">
-                                            <label>QuantMax (-1 = auto):</label>
-                                            <input
-                                                type="number"
-                                                value={selectedItem.quantmax || -1}
-                                                onChange={(e) => setSelectedItem({ ...selectedItem, quantmax: parseInt(e.target.value) })}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="editor-section">
-                                    <h3>🏷️ Tags & Usage</h3>
-                                    <div className="param-grid">
-                                        <div className="param-field">
-                                            <label>Tags (comma separated):</label>
-                                            <input
-                                                type="text"
-                                                value={(selectedItem.tags || []).join(', ')}
-                                                onChange={(e) => {
-                                                    const tags = e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag);
-                                                    setSelectedItem({ ...selectedItem, tags });
-                                                }}
-                                                placeholder="floor, shelves, ground"
-                                            />
-                                        </div>
-
-                                        <div className="param-field">
-                                            <label>Usage (comma separated):</label>
-                                            <input
-                                                type="text"
-                                                value={(selectedItem.usage || []).join(', ')}
-                                                onChange={(e) => {
-                                                    const usage = e.target.value.split(',').map(u => u.trim()).filter(u => u);
-                                                    setSelectedItem({ ...selectedItem, usage });
-                                                }}
-                                                placeholder="Military, Police, Town"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="editor-section">
-                                    <h3>🔧 Weapon Specific</h3>
-                                    <div className="param-grid">
-                                        <div className="param-field">
-                                            <label>Ammo Types (comma separated):</label>
-                                            <input
-                                                type="text"
-                                                value={(selectedItem.ammo_types || []).join(', ')}
-                                                onChange={(e) => {
-                                                    const ammo_types = e.target.value.split(',').map(a => a.trim()).filter(a => a);
-                                                    setSelectedItem({ ...selectedItem, ammo_types });
-                                                }}
-                                                placeholder="Ammo_556x45, Ammo_762x39"
-                                            />
-                                        </div>
-
-                                        <div className="param-field">
-                                            <label>Magazines (comma separated):</label>
-                                            <input
-                                                type="text"
-                                                value={(selectedItem.magazines || []).join(', ')}
-                                                onChange={(e) => {
-                                                    const magazines = e.target.value.split(',').map(m => m.trim()).filter(m => m);
-                                                    setSelectedItem({ ...selectedItem, magazines });
-                                                }}
-                                                placeholder="Mag_STANAG_30Rnd, Mag_AK74_30Rnd"
-                                            />
-                                        </div>
-
-                                        <div className="param-field">
-                                            <label>Attachments (comma separated):</label>
-                                            <input
-                                                type="text"
-                                                value={(selectedItem.attachments || []).join(', ')}
-                                                onChange={(e) => {
-                                                    const attachments = e.target.value.split(',').map(a => a.trim()).filter(a => a);
-                                                    setSelectedItem({ ...selectedItem, attachments });
-                                                }}
-                                                placeholder="M4_Suppressor, M4_OEBttstck"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="editor-section">
-                                    <h3>🎯 Flags Configuration</h3>
-                                    <div className="flags-grid">
-                                        {[
-                                            { key: 'count_in_cargo', label: 'Count in Cargo', type: 'checkbox' },
-                                            { key: 'count_in_hoarder', label: 'Count in Hoarder', type: 'checkbox' },
-                                            { key: 'count_in_map', label: 'Count in Map', type: 'checkbox' },
-                                            { key: 'count_in_player', label: 'Count in Player', type: 'checkbox' },
-                                            { key: 'crafted', label: 'Crafted', type: 'checkbox' },
-                                            { key: 'deloot', label: 'Deloot', type: 'checkbox' }
-                                        ].map(flag => (
-                                            <div key={flag.key} className="flag-field">
-                                                <label className="flag-checkbox">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={Boolean((selectedItem.flags || {})[flag.key])}
-                                                        onChange={(e) => {
-                                                            const currentFlags = selectedItem.flags || {};
-                                                            const newFlags = {
-                                                                ...currentFlags,
-                                                                [flag.key]: e.target.checked ? 1 : 0
-                                                            };
-                                                            setSelectedItem({ ...selectedItem, flags: newFlags });
-                                                        }}
-                                                    />
-                                                    {flag.label}
-                                                </label>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="editor-actions">
-                                    <button className="save-btn">💾 Save Changes</button>
-                                    <button className="revert-btn">↺ Revert Changes</button>
-                                    <button className="export-btn">📄 Export JSON</button>
-                                </div>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="editor-placeholder">
-                            <div className="placeholder-content">
-                                <h2>⚙️ Item Editor</h2>
-                                <p>Select an item from the categories to start editing</p>
-                                <div className="placeholder-icon">📝</div>
-                            </div>
+                        <div className="empty-collections-horizontal">
+                            <span>� Nenhuma coleção</span>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Status Bar */}
-            <div className="status-bar">
-                <span>Collections: {collections.length}</span>
-                {selectedCollection && <span>Categories: {categories.length}</span>}
-                {selectedItem && <span>Editing: {selectedItem.display_name || selectedItem.classname}</span>}
-                <span className="status-right">DayZ Economy Editor v2.0</span>
+            {/* Layout principal com 2 colunas */}
+            <div 
+                className="main-layout" 
+                ref={containerRef}
+                style={{
+                    display: 'flex',
+                    height: 'calc(100vh - 100px)', // Reduzido do header
+                    position: 'relative'
+                }}
+            >
+                {/* Categories Panel com Items */}
+                {selectedCollection && (
+                    <div 
+                        className="categories-panel-main"
+                        style={{
+                            width: `${leftWidth}px`,
+                            minWidth: '250px',
+                            maxWidth: '600px',
+                            flexShrink: 0,
+                            overflow: 'auto'
+                        }}
+                    >
+                        <div className="categories-header-compact">
+                            <h2>📂 {selectedCollection.display_name}</h2>
+                            <button 
+                                className="create-category-btn-compact"
+                                onClick={handleCreateCategory}
+                                title="Criar nova categoria"
+                            >
+                                ➕
+                            </button>
+                        </div>
+                        <div className="categories-grid-compact">
+                            {categories.length > 0 ? (
+                                categories.map(category => (
+                                    <div key={category.id} className="category-container-compact">
+                                        <div
+                                            className={`category-card-compact ${selectedCategory?.id === category.id ? 'selected' : ''}`}
+                                            onClick={() => handleCategorySelect(category)}
+                                        >
+                                            <div className="category-info-compact">
+                                                <div className="category-name-compact">{category.display_name}</div>
+                                                <div className="category-count-compact">{category.item_count} items</div>
+                                            </div>
+                                            {selectedCategory?.id === category.id && (
+                                                <div className="category-selected-indicator">▼</div>
+                                            )}
+                                        </div>
+                                        
+                                        {/* Items dentro da categoria selecionada */}
+                                        {selectedCategory?.id === category.id && (
+                                            <div className="items-in-category-compact">
+                                                <div className="items-header-compact">
+                                                    <span>📄 Items</span>
+                                                    <button 
+                                                        className="create-item-btn-compact"
+                                                        onClick={handleCreateItem}
+                                                        title="Criar novo item"
+                                                    >
+                                                        ➕
+                                                    </button>
+                                                </div>
+                                                {items.length > 0 ? (
+                                                    <div className="items-list-compact">
+                                                        {items.map(item => (
+                                                            <div 
+                                                                key={item.id} 
+                                                                className={`item-card-compact ${selectedItem?.id === item.id ? 'selected' : ''}`}
+                                                                onClick={() => handleItemSelect(item)}
+                                                            >
+                                                                <div className="item-header-compact">
+                                                                    <div className="item-name-compact">{item.classname}</div>
+                                                                    <div className="item-tier-compact">
+                                                                        T{Array.isArray(item.tier) ? item.tier.join(',') : item.tier}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="item-stats-compact">
+                                                                    <span>N:{item.nominal}</span>
+                                                                    <span>M:{item.min}</span>
+                                                                    <span>${item.price || item.cost || 100}</span>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="no-items-compact">
+                                                        <p>📄 Nenhum item</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="empty-categories-compact">
+                                    <p>📂 Nenhuma categoria</p>
+                                    <p>Clique ➕ para criar</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Resizer */}
+                <div
+                    className="resizer-main"
+                    onMouseDown={handleMouseDown}
+                    style={{
+                        width: '4px',
+                        backgroundColor: isResizing ? '#007ACC' : 'transparent',
+                        cursor: 'col-resize',
+                        flexShrink: 0,
+                        borderRight: '1px solid #333',
+                        position: 'relative',
+                        zIndex: 10
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#007ACC'}
+                    onMouseLeave={(e) => { if (!isResizing) e.target.style.backgroundColor = 'transparent'; }}
+                />
+
+                {/* Item Details Panel */}
+                <div 
+                    className="item-details-panel-main"
+                    style={{ 
+                        flex: 1,
+                        minWidth: '300px',
+                        overflow: 'auto'
+                    }}
+                >
+                    {selectedItem ? (
+                        <ItemDetailsV05 
+                            item={selectedItem} 
+                            onUpdateItem={handleItemUpdate}
+                            categories={categories || []}
+                        />
+                    ) : (
+                        <div className="no-item-selected-compact">
+                            <div className="no-selection-content-compact">
+                                <h3>⚙️ Item Editor</h3>
+                                <p>Selecione um item para editar</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
