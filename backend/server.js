@@ -24,12 +24,10 @@ const convertFlags = (row) => {
 
 // ==================== CATEGORIES ENDPOINTS ====================
 
-// GET /categories - Lista todas categorias
-app.get('/categories', (req, res) => {
+// GET /api/categories - Lista todas categorias
+app.get('/api/categories', (req, res) => {
   db.all('SELECT * FROM categories', [], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
+    if (err) return res.status(500).json({ error: err.message });
     
     const categories = rows.map(row => ({
       id: row.id,
@@ -84,29 +82,17 @@ app.get('/categories/:id', (req, res) => {
   });
 });
 
-// POST /categories - Criar nova categoria
-app.post('/categories', (req, res) => {
-  const { name, restock, price, tier, lifetime, min, nominal, quantmin, quantmax, flags } = req.body;
-  
-  if (!name) {
-    return res.status(400).json({ error: 'Name is required' });
-  }
-
-  const sql = `INSERT INTO categories (name, restock, price, tier, lifetime, min, nominal, quantmin, quantmax, flags) 
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-  
-  const params = [
-    name, restock || 0, price || 100, tier || 1, lifetime || 3888000,
-    min || 0, nominal || 10, quantmin || -1, quantmax || -1,
-    JSON.stringify(flags || {})
-  ];
-
-  db.run(sql, params, function(err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+// POST /api/categories - Criar nova categoria
+app.post('/api/categories', (req, res) => {
+  const { name, display_name, description, collection_id, item_count } = req.body;
+  db.run(
+    `INSERT INTO categories (name, display_name, description, collection_id, item_count) VALUES (?, ?, ?, ?, ?)`,
+    [name, display_name, description, collection_id, item_count || 0],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ id: this.lastID, name, display_name, description, collection_id, item_count: item_count || 0 });
     }
-    res.json({ id: this.lastID, ...req.body });
-  });
+  );
 });
 
 // PUT /categories/:id - Atualizar categoria
@@ -153,21 +139,10 @@ app.delete('/categories/:id', (req, res) => {
 
 // ==================== ITEMS ENDPOINTS ====================
 
-// GET /items - Lista todos itens
-app.get('/items', (req, res) => {
-  const { category_id } = req.query;
-  let sql = 'SELECT * FROM items';
-  const params = [];
-  
-  if (category_id) {
-    sql += ' WHERE category_id = ?';
-    params.push(category_id);
-  }
-  
-  db.all(sql, params, (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
+// GET /api/items - Lista todos itens
+app.get('/api/items', (req, res) => {
+  db.all('SELECT * FROM items', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
     // Parse JSON fields
     const items = rows.map(row => ({
       ...row,
@@ -203,33 +178,20 @@ app.get('/items/:id', (req, res) => {
   });
 });
 
-// POST /items - Criar novo item
-app.post('/items', (req, res) => {
-  const { classname, category_id, tier, price, lifetime, restock, min, nominal, 
-          quantmin, quantmax, flags, tags, usage, ammo_types, magazines, attachments } = req.body;
-  
-  if (!classname || !category_id) {
-    return res.status(400).json({ error: 'Classname and category_id are required' });
-  }
-
-  const sql = `INSERT INTO items (classname, category_id, tier, price, lifetime, restock, min, nominal, 
-                                  quantmin, quantmax, flags, tags, usage, ammo_types, magazines, attachments) 
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-  
-  const params = [
-    classname, category_id, tier || 1, price || 100, lifetime || 3888000,
-    restock || 0, min || 0, nominal || 10, quantmin || -1, quantmax || -1,
-    JSON.stringify(flags || {}), JSON.stringify(tags || []),
-    JSON.stringify(usage || []), JSON.stringify(ammo_types || []),
-    JSON.stringify(magazines || []), JSON.stringify(attachments || [])
-  ];
-
-  db.run(sql, params, function(err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+// POST /api/items - Criar novo item
+app.post('/api/items', (req, res) => {
+  const { classname, category_id, tier, nominal, min, lifetime, restock, quantmin, quantmax, price, flags, tags, usage, variants } = req.body;
+  db.run(
+    `INSERT INTO items (classname, category_id, tier, nominal, min, lifetime, restock, quantmin, quantmax, price, flags, tags, usage, variants) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      classname, category_id, JSON.stringify(tier || [1]), nominal || 10, min || 5, lifetime || 14400, restock || 3600,
+      quantmin || 50, quantmax || 80, price || 100, JSON.stringify(flags || {}), JSON.stringify(tags || []), JSON.stringify(usage || []), JSON.stringify(variants || [])
+    ],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ id: this.lastID, classname, category_id, tier, nominal, min, lifetime, restock, quantmin, quantmax, price, flags, tags, usage, variants });
     }
-    res.json({ id: this.lastID, ...req.body });
-  });
+  );
 });
 
 // PUT /items/:id - Atualizar item
@@ -377,6 +339,31 @@ app.delete('/variants/:id', (req, res) => {
     res.json({ message: 'Variant deleted successfully' });
   });
 });
+
+// ==================== COLLECTIONS ENDPOINTS ====================
+
+// GET /api/collections - Lista todas as coleções
+app.get('/api/collections', (req, res) => {
+  db.all('SELECT * FROM collections', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// POST /api/collections - Criar nova coleção
+app.post('/api/collections', (req, res) => {
+  const { name, display_name, description, icon, color } = req.body;
+  db.run(
+    `INSERT INTO collections (name, display_name, description, icon, color) VALUES (?, ?, ?, ?, ?)`,
+    [name, display_name, description, icon, color],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ id: this.lastID });
+    }
+  );
+});
+
+// Repita para categories e items (GET/POST/PUT)
 
 // Start server
 app.listen(PORT, () => {

@@ -5,6 +5,28 @@ echo  🎮 Askal Economy Editor - DayZ
 echo ==========================================
 echo.
 
+:: Verifica se Node.js está instalado
+where node >nul 2>&1
+if errorlevel 1 (
+    echo ERRO: Node.js nao encontrado. Instale antes de continuar.
+    pause
+    exit /b
+)
+
+:: Verifica se pasta backend existe
+if not exist "%~dp0backend" (
+    echo ERRO: Pasta 'backend' nao encontrada!
+    pause
+    exit /b
+)
+
+:: Verifica se pasta frontend existe
+if not exist "%~dp0frontend" (
+    echo ERRO: Pasta 'frontend' nao encontrada!
+    pause
+    exit /b
+)
+
 :: Novo: se for chamado com argumento "restart", executa rotina de reinicio
 if /i "%~1"=="restart" goto :restartTool
 
@@ -32,10 +54,13 @@ rem args: %1 = porta
 setlocal
 set "port=%~1"
 echo Procurando processos que escutam na porta %port%...
+set "found=0"
 for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":%port%"') do (
+    set "found=1"
     echo Matando PID %%p que usa a porta %port%...
     taskkill /PID %%p /F >nul 2>&1
 )
+if "%found%"=="0" echo Nenhum processo encontrado na porta %port%.
 endlocal
 goto :eof
 

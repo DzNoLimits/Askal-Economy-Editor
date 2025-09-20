@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './CollectionsViewCompact.css';
 import ItemDetailsV05 from './ItemDetailsV05_complete';
 
@@ -32,7 +32,7 @@ const CollectionsView = () => {
         document.body.style.cursor = 'col-resize';
     };
 
-    const handleMouseMove = (e) => {
+    const handleMouseMove = useCallback((e) => {
         if (!isResizing || !containerRef.current) return;
 
         const containerRect = containerRef.current.getBoundingClientRect();
@@ -42,14 +42,14 @@ const CollectionsView = () => {
         if (newLeftWidth >= 250 && newLeftWidth <= containerWidth - 300) {
             setLeftWidth(newLeftWidth);
         }
-    };
+    }, [isResizing, containerRef]);
 
-    const handleMouseUp = () => {
+    const handleMouseUp = useCallback(() => {
         setIsResizing(false);
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
         document.body.style.cursor = '';
-    };
+    }, [handleMouseMove]);
 
     // Cleanup
     useEffect(() => {
@@ -57,53 +57,7 @@ const CollectionsView = () => {
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
         };
-    }, []);
-
-    const fetchCollections = async () => {
-        try {
-            setLoading(true);
-            console.log('🔍 Fetching categories as collections...');
-
-            // Buscar categorias do backend (usaremos como collections)
-            const response = await fetch('http://localhost:3001/categories');
-            console.log('📡 Response status:', response.status);
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const backendCategories = await response.json();
-            console.log('� Backend categories:', backendCategories);
-
-            // Converter categorias do backend para o formato de collections
-            const collectionsFromBackend = backendCategories.map(category => ({
-                id: category.id,
-                name: category.name,
-                display_name: category.name.charAt(0).toUpperCase() + category.name.slice(1),
-                description: `Collection for ${category.name}`,
-                icon: '📁',
-                color: '#4a90e2',
-                category_count: 1,
-                item_count: 0
-            }));
-
-            setCollections(collectionsFromBackend);
-            console.log('✅ Collections loaded:', collectionsFromBackend.length);
-            
-        } catch (error) {
-            console.error('❌ Error fetching collections:', error);
-            setCollections([]);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchCategories = async (collectionId) => {
-        // Modo local - filtrar categorias por collection_id
-        const localCategories = categories.filter(cat => cat.collection_id === collectionId);
-        console.log(`🔍 Categories for collection ${collectionId}:`, localCategories);
-        return localCategories;
-    };
+    }, [handleMouseMove, handleMouseUp]);
 
     const fetchItems = async (categoryId) => {
         // Modo local - filtrar items por category_id  
@@ -140,71 +94,89 @@ const CollectionsView = () => {
         setSelectedItem(updatedItem);
     };
 
-    const handleCreateCollection = () => {
+    // Carregar dados do backend
+    useEffect(() => {
+        setLoading(true);
+        fetch('http://localhost:3001/api/collections')
+            .then(res => res.json())
+            .then(data => {
+                setCollections(data);
+                setLoading(false);
+            });
+        fetch('http://localhost:3001/categories')
+            .then(res => res.json())
+            .then(data => setCategories(data));
+        fetch('http://localhost:3001/items')
+            .then(res => res.json())
+            .then(data => setItems(data));
+    }, []);
+
+    // Criar coleção persistente
+    const handleCreateCollection = async () => {
         const name = prompt('Nome da nova coleção:');
         if (name && name.trim()) {
             const newCollection = {
-                id: Date.now(), // ID temporário
                 name: name.toLowerCase().replace(/\s+/g, '_'),
                 display_name: name,
                 description: '',
                 icon: '📁',
-                color: '#4a90e2',
-                category_count: 0,
-                item_count: 0
+                color: '#4a90e2'
             };
-
-            // Adicionar à lista local (em produção seria uma chamada à API)
-            setCollections(prev => [...prev, newCollection]);
-            console.log('✅ Nova coleção criada:', newCollection);
+            const res = await fetch('http://localhost:3001/api/collections', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newCollection)
+            });
+            const data = await res.json();
+            setCollections(prev => [...prev, { ...newCollection, id: data.id, category_count: 0, item_count: 0 }]);
+            console.log('✅ Nova coleção criada:', data);
         }
     };
 
-    const handleCreateCategory = () => {
+    // Criar categoria persistente
+    const handleCreateCategory = async () => {
         if (!selectedCollection) return;
-
         const name = prompt('Nome da nova categoria:');
         if (name && name.trim()) {
             const newCategory = {
-                id: Date.now(), // ID temporário
                 name: name.toLowerCase().replace(/\s+/g, '_'),
                 display_name: name,
                 description: `Categoria ${name}`,
                 collection_id: selectedCollection.id,
                 item_count: 0
             };
-
-            // Adicionar à lista local (em produção seria uma chamada à API)
-            setCategories(prev => [...prev, newCategory]);
-
-            // Atualizar o contador da collection
+            const res = await fetch('http://localhost:3001/categories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newCategory)
+            });
+            const data = await res.json();
+            setCategories(prev => [...prev, { ...newCategory, id: data.id }]);
             setCollections(prev => prev.map(col =>
                 col.id === selectedCollection.id
                     ? { ...col, category_count: col.category_count + 1 }
                     : col
             ));
-
-            console.log('✅ Nova categoria criada:', newCategory);
+            console.log('✅ Nova categoria criada:', data);
         }
     };
 
-    const handleCreateItem = () => {
+    // Criar item persistente
+    const handleCreateItem = async () => {
         if (!selectedCategory) return;
-
         const classname = prompt('Classname do novo item (ex: AKM, M4A1, etc):');
         if (classname && classname.trim()) {
             const newItem = {
-                id: Date.now(), // ID temporário
                 classname: classname.trim(),
                 category_id: selectedCategory.id,
-                tier: [1], // Array de tiers
+                tier: [1],
                 nominal: 10,
                 min: 5,
-                lifetime: 14400, // 4 horas
-                restock: 3600, // 1 hora
+                lifetime: 14400,
+                restock: 3600,
                 quantmin: 50,
                 quantmax: 80,
-                price: 100, // Movido para basic parameters
+                price: 100,
                 flags: {
                     Dispatch: false,
                     Events: true,
@@ -214,27 +186,27 @@ const CollectionsView = () => {
                     Store: true
                 },
                 tags: [],
-                usage: [selectedCategory.display_name?.toLowerCase() || 'tools'], // Usar categoria como usage inicial
+                usage: [selectedCategory.display_name?.toLowerCase() || 'tools'],
                 variants: []
             };
-
-            // Adicionar à lista local (em produção seria uma chamada à API)
-            setItems(prev => [...prev, newItem]);
-
-            // Atualizar contadores
+            const res = await fetch('http://localhost:3001/items', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newItem)
+            });
+            const data = await res.json();
+            setItems(prev => [...prev, { ...newItem, id: data.id }]);
             setCategories(prev => prev.map(cat =>
                 cat.id === selectedCategory.id
                     ? { ...cat, item_count: cat.item_count + 1 }
                     : cat
             ));
-
             setCollections(prev => prev.map(col =>
                 col.id === selectedCollection.id
                     ? { ...col, item_count: col.item_count + 1 }
                     : col
             ));
-
-            console.log('✅ Novo item criado:', newItem);
+            console.log('✅ Novo item criado:', data);
         }
     };
 
