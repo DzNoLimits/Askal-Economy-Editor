@@ -22,70 +22,6 @@ const convertFlags = (row) => {
   };
 };
 
-// Função utilitária para deserializar um item do banco
-function parseItemRow(row) {
-  return {
-    id: row.id,
-    classname: row.classname,
-    category_id: row.category_id,
-    tier: JSON.parse(row.tier || '[1]'),
-    nominal: row.nominal,
-    min: row.min,
-    lifetime: row.lifetime,
-    restock: row.restock,
-    quantmin: row.quantmin,
-    quantmax: row.quantmax,
-    price: row.price,
-    flags: JSON.parse(row.flags || '{}'),
-    tags: JSON.parse(row.tags || '[]'),
-    usage: JSON.parse(row.usage || '[]'),
-    ammo_types: JSON.parse(row.ammo_types || '[]'),
-    magazines: JSON.parse(row.magazines || '[]'),
-    attachments: JSON.parse(row.attachments || '{}'),
-    variants: JSON.parse(row.variants || '{}'),
-    created_at: row.created_at,
-    updated_at: row.updated_at
-  };
-}
-
-// Função utilitária para exportar dados consolidados para JSON
-async function exportEconomyJson() {
-  // Exemplo: busca todas collections, categories e items
-  const collections = await new Promise((resolve, reject) => {
-    db.all('SELECT * FROM collections', [], (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
-
-  const categories = await new Promise((resolve, reject) => {
-    db.all('SELECT * FROM categories', [], (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
-
-  const items = await new Promise((resolve, reject) => {
-    db.all('SELECT * FROM items', [], (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows.map(parseItemRow));
-    });
-  });
-
-  // Estrutura consolidada para exportação
-  const exportJson = {
-    collections,
-    categories,
-    items,
-    // Adapte para o formato final desejado (types.xml, market.json, etc)
-    // Exemplo para market.json:
-    // MarketItems: items.map(item => ({ ... }))
-    // Types: items.map(item => ({ ... }))
-  };
-
-  return exportJson;
-}
-
 // ==================== CATEGORIES ENDPOINTS ====================
 
 // GET /api/categories - Lista todas categorias
@@ -207,7 +143,17 @@ app.delete('/categories/:id', (req, res) => {
 app.get('/api/items', (req, res) => {
   db.all('SELECT * FROM items', [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    const items = rows.map(parseItemRow);
+    // Parse JSON fields
+    const items = rows.map(row => ({
+      ...row,
+      flags: JSON.parse(row.flags || '{}'),
+      tags: JSON.parse(row.tags || '[]'),
+      usage: JSON.parse(row.usage || '[]'),
+      ammo_types: JSON.parse(row.ammo_types || '[]'),
+      magazines: JSON.parse(row.magazines || '[]'),
+      attachments: JSON.parse(row.attachments || '[]'),
+      variants: JSON.parse(row.variants || '[]')
+    }));
     res.json(items);
   });
 });
@@ -216,48 +162,36 @@ app.get('/api/items', (req, res) => {
 app.get('/items/:id', (req, res) => {
   const { id } = req.params;
   db.get('SELECT * FROM items WHERE id = ?', [id], (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!row) return res.status(404).json({ error: 'Item not found' });
-    res.json(parseItemRow(row));
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (!row) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+    // Parse JSON fields
+    row.flags = JSON.parse(row.flags || '{}');
+    row.tags = JSON.parse(row.tags || '[]');
+    row.usage = JSON.parse(row.usage || '[]');
+    row.ammo_types = JSON.parse(row.ammo_types || '[]');
+    row.magazines = JSON.parse(row.magazines || '[]');
+    row.attachments = JSON.parse(row.attachments || '[]');
+    row.variants = JSON.parse(row.variants || '[]');
+    res.json(row);
   });
 });
 
 // POST /api/items - Criar novo item
 app.post('/api/items', (req, res) => {
-  const {
-    classname, category_id, tier, nominal, min, lifetime, restock, quantmin, quantmax, price,
-    flags, tags, usage, ammo_types, magazines, attachments, variants
-  } = req.body;
+  const { classname, category_id, tier, nominal, min, lifetime, restock, quantmin, quantmax, price, flags, tags, usage, variants } = req.body;
   db.run(
-    `INSERT INTO items (classname, category_id, tier, nominal, min, lifetime, restock, quantmin, quantmax, price,
-      flags, tags, usage, ammo_types, magazines, attachments, variants)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO items (classname, category_id, tier, nominal, min, lifetime, restock, quantmin, quantmax, price, flags, tags, usage, variants) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      classname,
-      category_id,
-      JSON.stringify(tier ?? [1]),
-      nominal ?? 10,
-      min ?? 5,
-      lifetime ?? 14400,
-      restock ?? 3600,
-      quantmin ?? 50,
-      quantmax ?? 80,
-      price ?? 100,
-      JSON.stringify(flags ?? {}),
-      JSON.stringify(tags ?? []),
-      JSON.stringify(usage ?? []),
-      JSON.stringify(ammo_types ?? []),
-      JSON.stringify(magazines ?? []),
-      JSON.stringify(attachments ?? {}),
-      JSON.stringify(variants ?? {})
+      classname, category_id, JSON.stringify(tier || [1]), nominal || 10, min || 5, lifetime || 14400, restock || 3600,
+      quantmin || 50, quantmax || 80, price || 100, JSON.stringify(flags || {}), JSON.stringify(tags || []), JSON.stringify(usage || []), JSON.stringify(variants || [])
     ],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
-      // Retorne o objeto completo já deserializado
-      db.get('SELECT * FROM items WHERE id = ?', [this.lastID], (err2, row) => {
-        if (err2) return res.status(500).json({ error: err2.message });
-        res.json(parseItemRow(row));
-      });
+      res.json({ id: this.lastID, classname, category_id, tier, nominal, min, lifetime, restock, quantmin, quantmax, price, flags, tags, usage, variants });
     }
   );
 });
@@ -265,42 +199,31 @@ app.post('/api/items', (req, res) => {
 // PUT /items/:id - Atualizar item
 app.put('/items/:id', (req, res) => {
   const { id } = req.params;
-  const {
-    classname, category_id, tier, price, lifetime, restock, min, nominal,
-    quantmin, quantmax, flags, tags, usage, ammo_types, magazines, attachments, variants
-  } = req.body;
-  const sql = `UPDATE items
-    SET classname = ?, category_id = ?, tier = ?, price = ?, lifetime = ?,
-        restock = ?, min = ?, nominal = ?, quantmin = ?, quantmax = ?,
-        flags = ?, tags = ?, usage = ?, ammo_types = ?, magazines = ?, attachments = ?, variants = ?
-    WHERE id = ?`;
+  const { classname, category_id, tier, price, lifetime, restock, min, nominal,
+          quantmin, quantmax, flags, tags, usage, ammo_types, magazines, attachments } = req.body;
+
+  const sql = `UPDATE items 
+               SET classname = ?, category_id = ?, tier = ?, price = ?, lifetime = ?, 
+                   restock = ?, min = ?, nominal = ?, quantmin = ?, quantmax = ?,
+                   flags = ?, tags = ?, usage = ?, ammo_types = ?, magazines = ?, attachments = ?
+               WHERE id = ?`;
+  
   const params = [
-    classname,
-    category_id,
-    JSON.stringify(tier ?? [1]),
-    price,
-    lifetime,
-    restock,
-    min,
-    nominal,
-    quantmin,
-    quantmax,
-    JSON.stringify(flags ?? {}),
-    JSON.stringify(tags ?? []),
-    JSON.stringify(usage ?? []),
-    JSON.stringify(ammo_types ?? []),
-    JSON.stringify(magazines ?? []),
-    JSON.stringify(attachments ?? {}),
-    JSON.stringify(variants ?? {}),
-    id
+    classname, category_id, tier, price, lifetime,
+    restock, min, nominal, quantmin, quantmax,
+    JSON.stringify(flags || {}), JSON.stringify(tags || []),
+    JSON.stringify(usage || []), JSON.stringify(ammo_types || []),
+    JSON.stringify(magazines || []), JSON.stringify(attachments || []), id
   ];
-  db.run(sql, params, function (err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Item not found' });
-    db.get('SELECT * FROM items WHERE id = ?', [id], (err2, row) => {
-      if (err2) return res.status(500).json({ error: err2.message });
-      res.json(parseItemRow(row));
-    });
+
+  db.run(sql, params, function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+    res.json({ id, ...req.body });
   });
 });
 

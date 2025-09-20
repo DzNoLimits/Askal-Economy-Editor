@@ -1,6 +1,188 @@
 import React, { useState, useEffect } from 'react';
 import './ItemDetailsV05.css';
 
+// Chips input helper
+function ChipsInput({ label, values, onChange }) {
+  const [input, setInput] = useState('');
+  return (
+    <div className="chips-input-group">
+      <label>{label}</label>
+      <div className="chips-list">
+        {values.map((v, i) => (
+          <span key={i} className="chip">
+            {v}
+            <button onClick={() => onChange(values.filter((_, idx) => idx !== i))}>×</button>
+          </span>
+        ))}
+        <input
+          type="text"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && input.trim()) {
+              onChange([...values, input.trim()]);
+              setInput('');
+            }
+          }}
+          placeholder={`Adicionar ${label.toLowerCase()}`}
+        />
+      </div>
+    </div>
+  );
+}
+
+// List input helper
+function ListInput({ label, values, onChange }) {
+  const [input, setInput] = useState('');
+  return (
+    <div className="list-input-group">
+      <label>{label}</label>
+      <ul>
+        {values.map((v, i) => (
+          <li key={i}>
+            {v}
+            <button onClick={() => onChange(values.filter((_, idx) => idx !== i))}>×</button>
+          </li>
+        ))}
+      </ul>
+      <input
+        type="text"
+        value={input}
+        onChange={e => setInput(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Enter' && input.trim()) {
+            onChange([...values, input.trim()]);
+            setInput('');
+          }
+        }}
+        placeholder={`Adicionar ${label.toLowerCase()}`}
+      />
+    </div>
+  );
+}
+
+// Attachments editor
+function AttachmentsEditor({ attachments, onChange }) {
+  const [cat, setCat] = useState('');
+  const [val, setVal] = useState('');
+  return (
+    <div className="attachments-editor-group">
+      <label>Attachments</label>
+      <div>
+        {Object.entries(attachments || {}).map(([category, arr]) => (
+          <div key={category} className="attachment-category">
+            <strong>{category}</strong>
+            <ul>
+              {arr.map((a, i) => (
+                <li key={i}>
+                  {a}
+                  <button onClick={() => {
+                    const newArr = arr.filter((_, idx) => idx !== i);
+                    onChange({ ...attachments, [category]: newArr });
+                  }}>×</button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <div className="attachment-add-row">
+        <input
+          type="text"
+          value={cat}
+          onChange={e => setCat(e.target.value)}
+          placeholder="Categoria"
+        />
+        <input
+          type="text"
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          placeholder="Attachment"
+        />
+        <button
+          onClick={() => {
+            if (cat && val) {
+              const arr = attachments[cat] || [];
+              onChange({ ...attachments, [cat]: [...arr, val] });
+              setVal('');
+            }
+          }}
+        >Adicionar</button>
+      </div>
+    </div>
+  );
+}
+
+// Variants editor
+function VariantsEditor({ variants, onChange }) {
+  const [name, setName] = useState('');
+  const [config, setConfig] = useState('');
+  return (
+    <div className="variants-editor-group">
+      <label>Variants</label>
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Config</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(variants || {}).map(([variantName, variantConfig]) => (
+            <tr key={variantName}>
+              <td>{variantName}</td>
+              <td>
+                <input
+                  type="text"
+                  value={JSON.stringify(variantConfig)}
+                  onChange={e => {
+                    let val = {};
+                    try { val = JSON.parse(e.target.value); } catch {}
+                    onChange({ ...variants, [variantName]: val });
+                  }}
+                />
+              </td>
+              <td>
+                <button onClick={() => {
+                  const v = { ...variants };
+                  delete v[variantName];
+                  onChange(v);
+                }}>×</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="variant-add-row">
+        <input
+          type="text"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="Nome da variante"
+        />
+        <input
+          type="text"
+          value={config}
+          onChange={e => setConfig(e.target.value)}
+          placeholder="Config JSON"
+        />
+        <button
+          onClick={() => {
+            if (name && config) {
+              let val = {};
+              try { val = JSON.parse(config); } catch {}
+              onChange({ ...variants, [name]: val });
+              setName('');
+              setConfig('');
+            }
+          }}
+        >Adicionar</button>
+      </div>
+    </div>
+  );
+}
+
 const ItemDetailsV05 = ({ item, onUpdateItem, categories = [] }) => {
   const [formData, setFormData] = useState({
     classname: '',
@@ -769,6 +951,46 @@ const ItemDetailsV05 = ({ item, onUpdateItem, categories = [] }) => {
             )}
           </div>
         </div>
+
+        {/* Tags */}
+        <ChipsInput
+          label="Tags"
+          values={item.tags || []}
+          onChange={tags => onUpdateItem({ ...item, tags })}
+        />
+
+        {/* Usage */}
+        <ChipsInput
+          label="Usage"
+          values={item.usage || []}
+          onChange={usage => onUpdateItem({ ...item, usage })}
+        />
+
+        {/* Ammo Types */}
+        <ListInput
+          label="Ammo Types"
+          values={item.ammo_types || []}
+          onChange={ammo_types => onUpdateItem({ ...item, ammo_types })}
+        />
+
+        {/* Magazines */}
+        <ListInput
+          label="Magazines"
+          values={item.magazines || []}
+          onChange={magazines => onUpdateItem({ ...item, magazines })}
+        />
+
+        {/* Attachments */}
+        <AttachmentsEditor
+          attachments={item.attachments || {}}
+          onChange={attachments => onUpdateItem({ ...item, attachments })}
+        />
+
+        {/* Variants */}
+        <VariantsEditor
+          variants={item.variants || {}}
+          onChange={variants => onUpdateItem({ ...item, variants })}
+        />
 
       </div>
     </div>
