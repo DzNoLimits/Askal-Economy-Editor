@@ -61,9 +61,13 @@ const CollectionsView = () => {
 
     const fetchItems = async (categoryId) => {
         // Modo local - filtrar items por category_id  
-        const localItems = items.filter(item => item.category_id === categoryId);
-        console.log(`🔍 Items for category ${categoryId}:`, localItems);
-        return localItems;
+        if (Array.isArray(items)) {
+            const localItems = items.filter(item => item.category_id === categoryId);
+            console.log(`🔍 Items for category ${categoryId}:`, localItems);
+            return localItems;
+        }
+        console.log(`🔍 Items não é um array ainda para category ${categoryId}`);
+        return [];
     };
 
     const handleCollectionSelect = (collection) => {
@@ -71,9 +75,13 @@ const CollectionsView = () => {
         setSelectedCategory(null);
         setSelectedItem(null);
         
-        // Filtrar categorias desta collection
-        const collectionCategories = categories.filter(cat => cat.collection_id === collection.id);
-        console.log(`🔍 Selecionando collection: ${collection.display_name}, ${collectionCategories.length} categorias`);
+        // Filtrar categorias desta collection - verificar se categories é um array
+        if (Array.isArray(categories)) {
+            const collectionCategories = categories.filter(cat => cat.collection_id === collection.id);
+            console.log(`🔍 Selecionando collection: ${collection.display_name}, ${collectionCategories.length} categorias`);
+        } else {
+            console.log(`🔍 Selecionando collection: ${collection.display_name}, categories não é um array ainda`);
+        }
     };
 
     const handleCategorySelect = (category) => {
@@ -103,10 +111,10 @@ const CollectionsView = () => {
                 setCollections(data);
                 setLoading(false);
             });
-        fetch('http://localhost:3001/categories')
+        fetch('http://localhost:3001/api/categories')
             .then(res => res.json())
             .then(data => setCategories(data));
-        fetch('http://localhost:3001/items')
+        fetch('http://localhost:3001/api/items')
             .then(res => res.json())
             .then(data => setItems(data));
     }, []);
@@ -145,7 +153,7 @@ const CollectionsView = () => {
                 collection_id: selectedCollection.id,
                 item_count: 0
             };
-            const res = await fetch('http://localhost:3001/categories', {
+            const res = await fetch('http://localhost:3001/api/categories', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newCategory)
@@ -189,7 +197,7 @@ const CollectionsView = () => {
                 usage: [selectedCategory.display_name?.toLowerCase() || 'tools'],
                 variants: []
             };
-            const res = await fetch('http://localhost:3001/items', {
+            const res = await fetch('http://localhost:3001/api/items', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newItem)
@@ -383,7 +391,7 @@ const CollectionsView = () => {
                 <div className="header-content">
                     <h1>🗂️ DayZ Economy Editor</h1>
                     <div className="debug-info">
-                        Collections: {collections.length} | Categories: {categories.length} | Items: {items.length}
+                        Collections: {Array.isArray(collections) ? collections.length : 0} | Categories: {Array.isArray(categories) ? categories.length : 0} | Items: {Array.isArray(items) ? items.length : 0}
                     </div>
                 </div>
             </header>
@@ -459,7 +467,7 @@ const CollectionsView = () => {
                             </button>
                         </div>
                         <div className="categories-grid-compact">
-                            {categories.length > 0 ? (
+                            {Array.isArray(categories) && categories.length > 0 ? (
                                 categories.map(category => (
                                     <div key={category.id} className="category-container-compact">
                                         <div
@@ -489,40 +497,48 @@ const CollectionsView = () => {
                                                     </button>
                                                 </div>
                                                 {(() => {
-                                                    console.log('🔍 Estado items no momento do filtro:', items.length);
-                                                    const categoryItems = items.filter(item => item.category_id === category.id);
-                                                    console.log(`🔍 Filtro Debug - Category ID: ${category.id}, Items encontrados: ${categoryItems.length}`);
-                                                    console.log(`🔍 Total items disponíveis: ${items.length}`);
-                                                    console.log(`🔍 Categoria: ${category.display_name}`);
-                                                    console.log(`🔍 Items com category_id:`, items.map(i => ({classname: i.classname, category_id: i.category_id})));
+                                                    console.log('🔍 Estado items no momento do filtro:', Array.isArray(items) ? items.length : 'não é array');
+                                                    if (Array.isArray(items)) {
+                                                        const categoryItems = items.filter(item => item.category_id === category.id);
+                                                        console.log(`🔍 Filtro Debug - Category ID: ${category.id}, Items encontrados: ${categoryItems.length}`);
+                                                        console.log(`🔍 Total items disponíveis: ${items.length}`);
+                                                        console.log(`🔍 Categoria: ${category.display_name}`);
+                                                        console.log(`🔍 Items com category_id:`, items.map(i => ({classname: i.classname, category_id: i.category_id})));
                                                     
-                                                    return categoryItems.length > 0 ? (
-                                                        <div className="items-list-compact">
-                                                            {categoryItems.map(item => (
-                                                                <div
-                                                                    key={item.id}
-                                                                    className={`item-card-compact ${selectedItem?.id === item.id ? 'selected' : ''}`}
-                                                                    onClick={() => handleItemSelect(item)}
-                                                                >
-                                                                    <div className="item-header-compact">
-                                                                        <div className="item-name-compact">{item.classname}</div>
-                                                                        <div className="item-tier-compact">
-                                                                            T{Array.isArray(item.tier) ? item.tier.join(',') : item.tier}
+                                                        return categoryItems.length > 0 ? (
+                                                            <div className="items-list-compact">
+                                                                {categoryItems.map(item => (
+                                                                    <div
+                                                                        key={item.id}
+                                                                        className={`item-card-compact ${selectedItem?.id === item.id ? 'selected' : ''}`}
+                                                                        onClick={() => handleItemSelect(item)}
+                                                                    >
+                                                                        <div className="item-header-compact">
+                                                                            <div className="item-name-compact">{item.classname}</div>
+                                                                            <div className="item-tier-compact">
+                                                                                T{Array.isArray(item.tier) ? item.tier.join(',') : item.tier}
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="item-stats-compact">
+                                                                            <span>N:{item.nominal}</span>
+                                                                            <span>M:{item.min}</span>
+                                                                            <span>${item.price || item.cost || 100}</span>
                                                                         </div>
                                                                     </div>
-                                                                    <div className="item-stats-compact">
-                                                                        <span>N:{item.nominal}</span>
-                                                                        <span>M:{item.min}</span>
-                                                                        <span>${item.price || item.cost || 100}</span>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    ) : (
-                                                        <div className="no-items-compact">
-                                                            <p>📄 Nenhum item</p>
-                                                        </div>
-                                                    );
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="no-items-compact">
+                                                                <p>📄 Nenhum item</p>
+                                                            </div>
+                                                        );
+                                                    } else {
+                                                        return (
+                                                            <div className="no-items-compact">
+                                                                <p>📄 Carregando items...</p>
+                                                            </div>
+                                                        );
+                                                    }
                                                 })()}
                                             </div>
                                         )}

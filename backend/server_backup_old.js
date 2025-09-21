@@ -20,6 +20,15 @@ app.use((req, res, next) => {
   next();
 });
 
+// Middleware de tratamento de erros
+app.use((err, req, res, next) => {
+  console.error('Erro no servidor:', err.stack);
+  res.status(500).json({ 
+    error: 'Erro interno do servidor',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Algo deu errado'
+  });
+});
+
 // Função utilitária para deserializar um item do banco
 function parseItemRow(row) {
   if (!row) return null;
@@ -64,7 +73,51 @@ function validateItem(item) {
     errors.push('Price deve ser um número positivo');
   }
   
+  if (item.nominal !== undefined && (isNaN(item.nominal) || item.nominal < 0)) {
+    errors.push('Nominal deve ser um número positivo');
+  }
+  
+  if (item.min !== undefined && (isNaN(item.min) || item.min < 0)) {
+    errors.push('Min deve ser um número positivo');
+  }
+  
   return errors;
+}
+
+// Função utilitária para exportar dados consolidados para JSON
+async function exportEconomyJson() {
+  try {
+    const collections = await new Promise((resolve, reject) => {
+      db.all('SELECT * FROM collections', [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+
+    const categories = await new Promise((resolve, reject) => {
+      db.all('SELECT * FROM categories', [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+
+    const items = await new Promise((resolve, reject) => {
+      db.all('SELECT * FROM items', [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows.map(parseItemRow));
+      });
+    });
+
+    return {
+      collections,
+      categories,
+      items,
+      export_date: new Date().toISOString(),
+      version: '1.0.0'
+    };
+  } catch (error) {
+    throw new Error(`Erro ao exportar dados: ${error.message}`);
+  }
 }
 
 // ==================== COLLECTIONS ENDPOINTS ====================
@@ -72,8 +125,26 @@ function validateItem(item) {
 // GET /api/collections - Lista todas as coleções
 app.get('/api/collections', (req, res) => {
   db.all('SELECT * FROM collections ORDER BY name', [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('Erro ao buscar collections:', err);
+      return res.status(500).json({ error: 'Erro ao buscar collections' });
+    }
     res.json(rows);
+  });
+});
+
+// GET /api/collections/:id - Detalhes de uma coleção
+app.get('/api/collections/:id', (req, res) => {
+  const { id } = req.params;
+  db.get('SELECT * FROM collections WHERE id = ?', [id], (err, row) => {
+    if (err) {
+      console.error('Erro ao buscar collection:', err);
+      return res.status(500).json({ error: 'Erro ao buscar collection' });
+    }
+    if (!row) {
+      return res.status(404).json({ error: 'Collection not found' });
+    }
+    res.json(row);
   });
 });
 
@@ -89,7 +160,10 @@ app.post('/api/collections', (req, res) => {
     `INSERT INTO collections (name, display_name, description, icon, color) VALUES (?, ?, ?, ?, ?)`,
     [name, display_name, description || '', icon || '📁', color || '#4a90e2'],
     function (err) {
-      if (err) return res.status(500).json({ error: err.message });
+      if (err) {
+        console.error('Erro ao criar collection:', err);
+        return res.status(500).json({ error: 'Erro ao criar collection' });
+      }
       res.json({ id: this.lastID, name, display_name, description, icon, color });
     }
   );
@@ -99,16 +173,23 @@ app.post('/api/collections', (req, res) => {
 app.put('/api/collections/:id', (req, res) => {
   const { id } = req.params;
   const { name, display_name, description, icon, color } = req.body;
+
+  const sql = `UPDATE collections 
+               SET name = ?, display_name = ?, description = ?, icon = ?, color = ?
+               WHERE id = ?`;
   
-  db.run(
-    `UPDATE collections SET name = ?, display_name = ?, description = ?, icon = ?, color = ? WHERE id = ?`,
-    [name, display_name, description, icon, color, id],
-    function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      if (this.changes === 0) return res.status(404).json({ error: 'Collection not found' });
-      res.json({ id, ...req.body });
+  const params = [name, display_name, description, icon, color, id];
+
+  db.run(sql, params, function(err) {
+    if (err) {
+      console.error('Erro ao atualizar collection:', err);
+      return res.status(500).json({ error: 'Erro ao atualizar collection' });
     }
-  );
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Collection not found' });
+    }
+    res.json({ id, ...req.body });
+  });
 });
 
 // DELETE /api/collections/:id - Deletar coleção
@@ -116,8 +197,13 @@ app.delete('/api/collections/:id', (req, res) => {
   const { id } = req.params;
   
   db.run('DELETE FROM collections WHERE id = ?', [id], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Collection not found' });
+    if (err) {
+      console.error('Erro ao deletar collection:', err);
+      return res.status(500).json({ error: 'Erro ao deletar collection' });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Collection not found' });
+    }
     res.json({ message: 'Collection deleted successfully' });
   });
 });
@@ -126,14 +212,33 @@ app.delete('/api/collections/:id', (req, res) => {
 
 // GET /api/categories - Lista todas categorias
 app.get('/api/categories', (req, res) => {
-  db.all(`
-    SELECT c.*, col.display_name as collection_name, col.color as collection_color
-    FROM categories c 
-    LEFT JOIN collections col ON c.collection_id = col.id 
-    ORDER BY c.name
-  `, [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
+  db.all('SELECT * FROM categories ORDER BY name', [], (err, rows) => {
+    if (err) {
+      console.error('Erro ao buscar categories:', err);
+      return res.status(500).json({ error: 'Erro ao buscar categories' });
+    }
+    
+    const categories = rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      display_name: row.display_name,
+      description: row.description,
+      collection_id: row.collection_id,
+      item_count: row.item_count || 0,
+      restock: row.restock,
+      price: row.price,
+      tier: row.tier,
+      lifetime: row.lifetime,
+      min: row.min,
+      nominal: row.nominal,
+      quantmin: row.quantmin,
+      quantmax: row.quantmax,
+      flags: JSON.parse(row.flags || '{}'),
+      created_at: row.created_at,
+      updated_at: row.updated_at
+    }));
+    
+    res.json(categories);
   });
 });
 
@@ -141,9 +246,35 @@ app.get('/api/categories', (req, res) => {
 app.get('/api/categories/:id', (req, res) => {
   const { id } = req.params;
   db.get('SELECT * FROM categories WHERE id = ?', [id], (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!row) return res.status(404).json({ error: 'Category not found' });
-    res.json(row);
+    if (err) {
+      console.error('Erro ao buscar category:', err);
+      return res.status(500).json({ error: 'Erro ao buscar category' });
+    }
+    if (!row) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+    
+    const category = {
+      id: row.id,
+      name: row.name,
+      display_name: row.display_name,
+      description: row.description,
+      collection_id: row.collection_id,
+      item_count: row.item_count || 0,
+      restock: row.restock,
+      price: row.price,
+      tier: row.tier,
+      lifetime: row.lifetime,
+      min: row.min,
+      nominal: row.nominal,
+      quantmin: row.quantmin,
+      quantmax: row.quantmax,
+      flags: JSON.parse(row.flags || '{}'),
+      created_at: row.created_at,
+      updated_at: row.updated_at
+    };
+    
+    res.json(category);
   });
 });
 
@@ -159,7 +290,10 @@ app.post('/api/categories', (req, res) => {
     `INSERT INTO categories (name, display_name, description, collection_id, item_count) VALUES (?, ?, ?, ?, ?)`,
     [name, display_name, description || '', collection_id, item_count || 0],
     function (err) {
-      if (err) return res.status(500).json({ error: err.message });
+      if (err) {
+        console.error('Erro ao criar category:', err);
+        return res.status(500).json({ error: 'Erro ao criar category' });
+      }
       res.json({ id: this.lastID, name, display_name, description, collection_id, item_count: item_count || 0 });
     }
   );
@@ -168,22 +302,29 @@ app.post('/api/categories', (req, res) => {
 // PUT /api/categories/:id - Atualizar categoria
 app.put('/api/categories/:id', (req, res) => {
   const { id } = req.params;
-  const { name, display_name, description, collection_id, restock, price, tier, lifetime, min, nominal, quantmin, quantmax, flags } = req.body;
+  const { name, display_name, description, collection_id, item_count, restock, price, tier, lifetime, min, nominal, quantmin, quantmax, flags } = req.body;
 
   const sql = `UPDATE categories 
-               SET name = ?, display_name = ?, description = ?, collection_id = ?, restock = ?, price = ?, tier = ?, lifetime = ?, 
+               SET name = ?, display_name = ?, description = ?, collection_id = ?, item_count = ?,
+                   restock = ?, price = ?, tier = ?, lifetime = ?, 
                    min = ?, nominal = ?, quantmin = ?, quantmax = ?, flags = ?
                WHERE id = ?`;
   
   const params = [
-    name, display_name, description, collection_id, restock, price, tier, lifetime,
+    name, display_name, description, collection_id, item_count,
+    restock, price, tier, lifetime,
     min, nominal, quantmin, quantmax,
     JSON.stringify(flags || {}), id
   ];
 
   db.run(sql, params, function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Category not found' });
+    if (err) {
+      console.error('Erro ao atualizar category:', err);
+      return res.status(500).json({ error: 'Erro ao atualizar category' });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
     res.json({ id, ...req.body });
   });
 });
@@ -193,8 +334,13 @@ app.delete('/api/categories/:id', (req, res) => {
   const { id } = req.params;
   
   db.run('DELETE FROM categories WHERE id = ?', [id], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Category not found' });
+    if (err) {
+      console.error('Erro ao deletar category:', err);
+      return res.status(500).json({ error: 'Erro ao deletar category' });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
     res.json({ message: 'Category deleted successfully' });
   });
 });
@@ -204,7 +350,10 @@ app.delete('/api/categories/:id', (req, res) => {
 // GET /api/items - Lista todos itens
 app.get('/api/items', (req, res) => {
   db.all('SELECT * FROM items ORDER BY classname', [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('Erro ao buscar items:', err);
+      return res.status(500).json({ error: 'Erro ao buscar items' });
+    }
     const items = rows.map(parseItemRow);
     res.json(items);
   });
@@ -214,8 +363,13 @@ app.get('/api/items', (req, res) => {
 app.get('/api/items/:id', (req, res) => {
   const { id } = req.params;
   db.get('SELECT * FROM items WHERE id = ?', [id], (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!row) return res.status(404).json({ error: 'Item not found' });
+    if (err) {
+      console.error('Erro ao buscar item:', err);
+      return res.status(500).json({ error: 'Erro ao buscar item' });
+    }
+    if (!row) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
     res.json(parseItemRow(row));
   });
 });
@@ -227,10 +381,10 @@ app.post('/api/items', (req, res) => {
     flags, tags, usage, ammo_types, magazines, attachments, variants
   } = req.body;
   
-  // Validação
-  const validationErrors = validateItem({ classname, category_id });
+  // Validar dados de entrada
+  const validationErrors = validateItem({ classname, category_id, price, nominal, min });
   if (validationErrors.length > 0) {
-    return res.status(400).json({ error: validationErrors.join(', ') });
+    return res.status(400).json({ error: 'Dados inválidos', details: validationErrors });
   }
   
   db.run(
@@ -257,10 +411,16 @@ app.post('/api/items', (req, res) => {
       JSON.stringify(variants ?? {})
     ],
     function (err) {
-      if (err) return res.status(500).json({ error: err.message });
+      if (err) {
+        console.error('Erro ao criar item:', err);
+        return res.status(500).json({ error: 'Erro ao criar item' });
+      }
       // Retorne o objeto completo já deserializado
       db.get('SELECT * FROM items WHERE id = ?', [this.lastID], (err2, row) => {
-        if (err2) return res.status(500).json({ error: err2.message });
+        if (err2) {
+          console.error('Erro ao buscar item criado:', err2);
+          return res.status(500).json({ error: 'Erro ao buscar item criado' });
+        }
         res.json(parseItemRow(row));
       });
     }
@@ -275,10 +435,10 @@ app.put('/api/items/:id', (req, res) => {
     quantmin, quantmax, flags, tags, usage, ammo_types, magazines, attachments, variants
   } = req.body;
   
-  // Validação
-  const validationErrors = validateItem({ classname, category_id });
+  // Validar dados de entrada
+  const validationErrors = validateItem({ classname, category_id, price, nominal, min });
   if (validationErrors.length > 0) {
-    return res.status(400).json({ error: validationErrors.join(', ') });
+    return res.status(400).json({ error: 'Dados inválidos', details: validationErrors });
   }
   
   const sql = `UPDATE items
@@ -307,10 +467,18 @@ app.put('/api/items/:id', (req, res) => {
     id
   ];
   db.run(sql, params, function (err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Item not found' });
+    if (err) {
+      console.error('Erro ao atualizar item:', err);
+      return res.status(500).json({ error: 'Erro ao atualizar item' });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
     db.get('SELECT * FROM items WHERE id = ?', [id], (err2, row) => {
-      if (err2) return res.status(500).json({ error: err2.message });
+      if (err2) {
+        console.error('Erro ao buscar item atualizado:', err2);
+        return res.status(500).json({ error: 'Erro ao buscar item atualizado' });
+      }
       res.json(parseItemRow(row));
     });
   });
@@ -321,8 +489,13 @@ app.delete('/api/items/:id', (req, res) => {
   const { id } = req.params;
   
   db.run('DELETE FROM items WHERE id = ?', [id], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Item not found' });
+    if (err) {
+      console.error('Erro ao deletar item:', err);
+      return res.status(500).json({ error: 'Erro ao deletar item' });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
     res.json({ message: 'Item deleted successfully' });
   });
 });
@@ -334,7 +507,10 @@ app.get('/api/items/:id/variants', (req, res) => {
   const { id } = req.params;
   
   db.all('SELECT * FROM variants WHERE item_id = ?', [id], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('Erro ao buscar variants:', err);
+      return res.status(500).json({ error: 'Erro ao buscar variants' });
+    }
     // Parse JSON fields
     const variants = rows.map(row => ({
       ...row,
@@ -372,7 +548,10 @@ app.post('/api/items/:id/variants', (req, res) => {
   ];
 
   db.run(sql, params, function(err) {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('Erro ao criar variant:', err);
+      return res.status(500).json({ error: 'Erro ao criar variant' });
+    }
     res.json({ id: this.lastID, item_id, ...req.body });
   });
 });
@@ -398,8 +577,13 @@ app.put('/api/variants/:id', (req, res) => {
   ];
 
   db.run(sql, params, function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Variant not found' });
+    if (err) {
+      console.error('Erro ao atualizar variant:', err);
+      return res.status(500).json({ error: 'Erro ao atualizar variant' });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Variant not found' });
+    }
     res.json({ id, ...req.body });
   });
 });
@@ -409,34 +593,37 @@ app.delete('/api/variants/:id', (req, res) => {
   const { id } = req.params;
   
   db.run('DELETE FROM variants WHERE id = ?', [id], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Variant not found' });
+    if (err) {
+      console.error('Erro ao deletar variant:', err);
+      return res.status(500).json({ error: 'Erro ao deletar variant' });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Variant not found' });
+    }
     res.json({ message: 'Variant deleted successfully' });
   });
 });
 
-// ==================== HEALTH CHECK ====================
+// ==================== UTILITY ENDPOINTS ====================
 
+// GET /api/export - Exportar todos os dados
+app.get('/api/export', async (req, res) => {
+  try {
+    const data = await exportEconomyJson();
+    res.json(data);
+  } catch (error) {
+    console.error('Erro ao exportar dados:', error);
+    res.status(500).json({ error: 'Erro ao exportar dados' });
+  }
+});
+
+// GET /api/health - Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
     version: '1.0.0'
   });
-});
-
-// Middleware de tratamento de erros (deve ser o último)
-app.use((err, req, res, next) => {
-  console.error('Erro no servidor:', err.stack);
-  res.status(500).json({ 
-    error: 'Erro interno do servidor',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Algo deu errado'
-  });
-});
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Endpoint não encontrado' });
 });
 
 // Start server

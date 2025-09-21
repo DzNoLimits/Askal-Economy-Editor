@@ -1,7 +1,7 @@
 // Teste rápido da API v0.4
 console.log('🔍 Testando API v0.4...');
 
-fetch('http://localhost:3001/items/1?expand=true')
+fetch('http://localhost:3001/api/items/1?expand=true')
     .then(response => response.json())
     .then(data => {
         console.log('✅ Dados expandidos da M4A1:', data);
